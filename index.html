@@ -1,0 +1,4349 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- This site is hosted on Netlify. Anyone can build and deploy a site
+     like this one for free: https://netlify.new/?utm_campaign=loops&utm_source=ai-legible&utm_medium=owned&utm_content=comment&utm_id=747efc6c-b974-4c16-bfd9-34347871567f
+     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Classic Fighting Game - Masterclass Edition (XP & Quêtes)</title>
+    <link rel="icon" type="image/png" href="coco.png" />
+    <style>
+      :root {
+        --primary: #ff4757;
+        --primary-glow: rgba(255, 71, 87, 0.6);
+        --success: #2ed573;
+        --warning: #f1c40f;
+        --dark: #050508;
+        --ui-bg: rgba(5, 5, 8, 0.9);
+        --btn-bg: rgba(255, 255, 255, 0.05);
+        --btn-border: rgba(255, 255, 255, 0.2);
+        --btn-text: rgba(255, 255, 255, 0.8);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        margin: 0;
+        background: #000;
+        color: white;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        touch-action: manipulation;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      #loadingScreen {
+        position: fixed;
+        inset: 0;
+        background: linear-gradient(135deg, #050508 0%, #1e272e 100%);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        overflow: hidden;
+        transition: opacity 0.5s ease-out;
+      }
+
+      #loadingScreen.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .loading-title {
+        font-size: 4em;
+        color: var(--primary);
+        text-transform: uppercase;
+        letter-spacing: 5px;
+        text-shadow: 0 0 20px var(--primary-glow), 5px 5px 0 #000;
+        margin-bottom: 10px;
+        animation: pulse 2s ease-in-out infinite alternate;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+          text-shadow: 0 0 10px var(--primary-glow);
+        }
+        100% {
+          transform: scale(1.05);
+          text-shadow: 0 0 30px var(--primary-glow),
+            0 0 40px rgba(255, 71, 87, 0.4);
+        }
+      }
+
+      .loading-subtitle {
+        font-size: 1.2em;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 40px;
+        letter-spacing: 3px;
+        font-weight: 300;
+      }
+
+      .loading-bar-container {
+        width: 300px;
+        height: 30px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid var(--primary);
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow: 0 0 20px rgba(255, 71, 87, 0.3);
+        position: relative;
+      }
+
+      .loading-bar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, var(--primary), #ff6b81);
+        transition: width 0.3s ease-out;
+        box-shadow: 0 0 15px var(--primary-glow);
+      }
+
+      .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 4px solid rgba(255, 71, 87, 0.3);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-top: 30px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .loading-percentage {
+        margin-top: 20px;
+        font-size: 1.8em;
+        color: var(--primary);
+        font-weight: 900;
+        letter-spacing: 2px;
+        text-shadow: 0 0 10px var(--primary-glow);
+      }
+
+      #gameContainer {
+        position: relative;
+        box-shadow: 0 0 60px var(--primary-glow),
+          inset 0 0 30px rgba(0, 0, 0, 0.9);
+        border: 4px solid #1e272e;
+        border-radius: 8px;
+        overflow: hidden;
+        width: 100%;
+        height: auto;
+        max-width: 100vw;
+        max-height: 56.25vw;
+        background: var(--dark);
+        aspect-ratio: 2/1;
+      }
+
+      #scanlines {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 5;
+        background: linear-gradient(
+            rgba(18, 16, 16, 0) 50%,
+            rgba(0, 0, 0, 0.25) 50%
+          ),
+          linear-gradient(
+            90deg,
+            rgba(255, 0, 0, 0.06),
+            rgba(0, 255, 0, 0.02),
+            rgba(0, 0, 255, 0.06)
+          );
+        background-size: 100% 4px, 6px 100%;
+        opacity: 0.4;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        image-rendering: pixelated;
+      }
+
+      .overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: var(--ui-bg);
+        backdrop-filter: blur(10px);
+        text-align: center;
+        z-index: 10;
+        transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      h1 {
+        font-size: 4em;
+        margin-bottom: 10px;
+        color: var(--primary);
+        text-transform: uppercase;
+        font-style: italic;
+        letter-spacing: 3px;
+        text-shadow: 5px 5px 0px #1e272e, 0 0 30px var(--primary-glow);
+        animation: float 3s ease-in-out infinite;
+      }
+
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
+      }
+
+      h2 {
+        color: #fff;
+        margin-bottom: 5px;
+        font-weight: 300;
+        letter-spacing: 8px;
+      }
+
+      p {
+        font-size: 1.3em;
+        color: #a4b0be;
+        font-weight: 500;
+      }
+
+      .button-container {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        justify-content: center;
+        max-width: 700px;
+        margin-top: 20px;
+      }
+
+      button {
+        position: relative;
+        overflow: hidden;
+        padding: 8px 18px;
+        margin: 6px;
+        font-size: 0.95em;
+        font-weight: 900;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        background: linear-gradient(135deg, var(--primary), #ff6b81);
+        color: white;
+        box-shadow: 0 8px 20px var(--primary-glow);
+        transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        text-transform: uppercase;
+        z-index: 20;
+        letter-spacing: 1.5px;
+        border: 2px solid var(--btn-border);
+      }
+
+      button:focus-visible {
+        outline: 3px solid #fff;
+        outline-offset: 3px;
+      }
+
+      button::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 50%;
+        height: 100%;
+        background: linear-gradient(
+          to right,
+          rgba(255, 255, 255, 0) 0%,
+          rgba(255, 255, 255, 0.4) 50%,
+          rgba(255, 255, 255, 0) 100%
+        );
+        transform: skewX(-25deg);
+        animation: shine 2.5s infinite;
+      }
+
+      @keyframes shine {
+        0% {
+          left: -100%;
+        }
+        100% {
+          left: 200%;
+        }
+      }
+
+      button.btn-green {
+        background: linear-gradient(135deg, var(--success), #7bed9f);
+        box-shadow: 0 8px 20px rgba(46, 213, 115, 0.4);
+      }
+
+      button.btn-blue {
+        background: linear-gradient(135deg, #1e90ff, #70a1ff);
+        box-shadow: 0 8px 20px rgba(30, 144, 255, 0.4);
+      }
+
+      button.btn-gray {
+        background: linear-gradient(135deg, #2f3542, #4a4a4a);
+        box-shadow: 0 8px 20px rgba(47, 53, 66, 0.4);
+      }
+
+      button.btn-warning {
+        background: linear-gradient(135deg, var(--warning), #fdcb6e);
+        box-shadow: 0 8px 20px rgba(241, 196, 15, 0.4);
+      }
+
+      button.btn-xp {
+        background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        box-shadow: 0 8px 20px rgba(155, 89, 182, 0.4);
+      }
+
+      button:hover {
+        transform: scale(1.05) translateY(-3px);
+        box-shadow: 0 12px 30px rgba(255, 255, 255, 0.3);
+        border-color: rgba(255, 255, 255, 0.4);
+      }
+
+      button:active {
+        transform: scale(0.95);
+        border-color: white;
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      #introScreen video {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: -1;
+        opacity: 0.5;
+        mix-blend-mode: screen;
+        filter: contrast(1.2) saturate(1.5);
+      }
+
+      #mobileControls {
+        display: none;
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 20;
+      }
+
+      .dpad,
+      .action-btns,
+      .record-btn {
+        position: absolute;
+        pointer-events: auto;
+      }
+
+      .dpad {
+        bottom: 30px;
+        left: 30px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .action-btns {
+        bottom: 30px;
+        right: 30px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        width: 200px;
+      }
+
+      .record-btn {
+        top: 20px;
+        right: 20px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: var(--btn-bg);
+        border: 3px solid var(--warning);
+        color: var(--warning);
+        font-size: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.1),
+          0 4px 12px rgba(0, 0, 0, 0.5);
+        transition: all 0.1s;
+        touch-action: manipulation;
+        z-index: 25;
+        cursor: pointer;
+        display: none;
+      }
+
+      .record-btn:active,
+      .record-btn:focus-visible {
+        background: rgba(255, 255, 255, 0.5);
+        transform: scale(0.85);
+        border-color: white;
+        color: white;
+        box-shadow: 0 0 15px white, inset 0 0 12px rgba(255, 255, 255, 0.3);
+      }
+
+      .t-btn {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: var(--btn-bg);
+        border: 3px solid var(--btn-border);
+        color: var(--btn-text);
+        font-weight: bold;
+        font-size: 24px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        user-select: none;
+        backdrop-filter: blur(5px);
+        transition: all 0.1s;
+        box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.1),
+          0 4px 12px rgba(0, 0, 0, 0.5);
+        touch-action: manipulation;
+      }
+
+      .t-btn:active,
+      .t-btn:focus-visible {
+        background: rgba(255, 255, 255, 0.5);
+        transform: scale(0.85);
+        border-color: white;
+        color: white;
+        box-shadow: 0 0 15px white, inset 0 0 12px rgba(255, 255, 255, 0.3);
+        outline: none;
+      }
+
+      .dpad-row {
+        display: flex;
+        gap: 12px;
+      }
+
+      .t-btn.jump {
+        grid-column: span 2;
+        width: auto;
+        height: 70px;
+      }
+
+      #recordingIndicator {
+        position: absolute;
+        top: 20px;
+        right: 80px;
+        background: rgba(255, 0, 0, 0.8);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 15px;
+        font-weight: bold;
+        z-index: 100;
+        display: none;
+        animation: pulse 1s infinite;
+        font-size: 0.85em;
+      }
+
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.6;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .hidden {
+        display: none !important;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      #levelText {
+        position: absolute;
+        top: 15px;
+        width: 100%;
+        text-align: center;
+        font-size: 28px;
+        font-weight: 900;
+        color: var(--warning);
+        z-index: 6;
+        text-shadow: 3px 3px 0 #000, 0 0 15px rgba(241, 196, 15, 0.8);
+        letter-spacing: 4px;
+        font-style: italic;
+        pointer-events: none;
+      }
+
+      #replayBadge {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        color: #ff4757;
+        font-weight: 900;
+        font-size: 20px;
+        animation: blink 1s infinite;
+        display: none;
+        z-index: 6;
+        text-shadow: 0 0 12px #ff4757;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 4px 15px;
+        border-radius: 5px;
+        border: 1px solid #ff4757;
+      }
+
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.6;
+        }
+      }
+
+      #scoreDisplay {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        font-weight: 900;
+        font-size: 20px;
+        color: #2ed573;
+        z-index: 6;
+        text-shadow: 0 0 12px #2ed573;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 4px 15px;
+        border-radius: 5px;
+      }
+
+      /* Menu Boutique */
+      #shopMenu {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.95);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 100;
+        overflow-y: auto;
+        padding: 15px;
+        color: white;
+      }
+
+      #shopMenu.hidden {
+        display: none !important;
+      }
+
+      #shopContent {
+        width: 90%;
+        max-width: 600px;
+        background: rgba(10, 10, 15, 0.8);
+        border: 2px solid var(--primary);
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 0 20px rgba(255, 71, 87, 0.3);
+      }
+
+      #shopTitle {
+        font-size: 2.2em;
+        color: var(--warning);
+        text-transform: uppercase;
+        letter-spacing: 4px;
+        text-shadow: 0 0 15px rgba(241, 196, 15, 0.6);
+        margin-bottom: 15px;
+        font-weight: 900;
+        font-style: italic;
+        text-align: center;
+      }
+
+      #shopCoins {
+        font-size: 1.3em;
+        color: var(--success);
+        margin-bottom: 15px;
+        font-weight: bold;
+        text-shadow: 0 0 8px rgba(46, 213, 115, 0.6);
+        background: rgba(0, 0, 0, 0.5);
+        padding: 8px 15px;
+        border-radius: 6px;
+        border: 1px solid var(--success);
+        display: inline-block;
+        margin-bottom: 15px;
+      }
+
+      #xpSection {
+        background: rgba(20, 20, 30, 0.7);
+        border: 1px solid #9b59b6;
+        border-radius: 6px;
+        padding: 10px;
+        margin-bottom: 15px;
+        text-align: center;
+        font-size: 0.95em;
+      }
+
+      #xpText {
+        color: #9b59b6;
+        margin-bottom: 8px;
+        font-weight: bold;
+      }
+
+      #xpProgressContainer {
+        width: 100%;
+        height: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        margin: 8px 0;
+        overflow: hidden;
+        position: relative;
+      }
+
+      #xpProgress {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #9b59b6, #8e44ad);
+        transition: width 0.3s ease-out;
+        box-shadow: 0 0 10px rgba(155, 89, 182, 0.5);
+      }
+
+      #xpProgressText {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.8em;
+        color: white;
+        font-weight: bold;
+        text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+      }
+
+      #dailyBonusSection {
+        background: rgba(20, 20, 30, 0.7);
+        border: 1px solid var(--warning);
+        border-radius: 6px;
+        padding: 10px;
+        margin-bottom: 15px;
+        text-align: center;
+        font-size: 0.95em;
+        position: relative;
+      }
+
+      #dailyBonusText {
+        color: var(--warning);
+        margin-bottom: 8px;
+        font-weight: bold;
+      }
+
+      #dailyBonusCountdown {
+        color: #a4b0be;
+        font-size: 0.9em;
+        margin-bottom: 8px;
+      }
+
+      #claimBonusBtn {
+        background: linear-gradient(135deg, var(--warning), #fdcb6e);
+        box-shadow: 0 8px 20px rgba(241, 196, 15, 0.4);
+        font-size: 0.9em;
+        padding: 6px 12px;
+        margin: 5px auto 0;
+        display: block;
+        position: relative;
+      }
+
+      #claimBonusBtn.has-gift::after {
+        content: '!';
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #ff4757;
+        color: white;
+        border-radius: 50%;
+        width: 18px;
+        height: 18px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 10px;
+        font-weight: bold;
+        box-shadow: 0 0 8px rgba(255, 71, 87, 0.8);
+        animation: pulse 1s infinite;
+      }
+
+      #shopItems {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 12px;
+        width: 100%;
+        margin-bottom: 15px;
+      }
+
+      .shop-item {
+        background: rgba(15, 15, 20, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        padding: 12px;
+        text-align: center;
+        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        box-shadow: 0 0 10px rgba(255, 71, 87, 0.1);
+      }
+
+      .shop-item:hover,
+      .shop-item:focus-within {
+        transform: translateY(-3px);
+        box-shadow: 0 0 15px rgba(255, 71, 87, 0.2);
+        border-color: var(--primary);
+      }
+
+      .shop-item h3 {
+        color: var(--primary);
+        font-size: 1.1em;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+      }
+
+      .shop-item p {
+        color: #a4b0be;
+        font-size: 0.85em;
+        margin-bottom: 8px;
+        line-height: 1.3;
+      }
+
+      .shop-item .item-cost {
+        color: var(--warning);
+        font-weight: bold;
+        font-size: 1.1em;
+        margin: 8px 0;
+      }
+
+      .shop-item .item-owned {
+        color: var(--success);
+        font-weight: bold;
+        font-size: 1em;
+        margin: 8px 0;
+      }
+
+      .shop-item button {
+        width: 70%;
+        margin: 8px auto 0;
+        font-size: 0.85em;
+        padding: 6px 10px;
+      }
+
+      #shopCloseBtn {
+        margin-top: 10px;
+        background: linear-gradient(135deg, #2f3542, #4a4a4a);
+        box-shadow: 0 8px 20px rgba(47, 53, 66, 0.4);
+        font-size: 0.95em;
+        padding: 8px 18px;
+      }
+
+      /* Menu Pause */
+      #pauseMenu {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.9);
+        padding: 20px;
+        border-radius: 8px;
+        border: 2px solid var(--primary);
+        z-index: 100;
+        display: none;
+        text-align: center;
+        max-width: 350px;
+        width: 90%;
+      }
+
+      #pauseMenu h2 {
+        margin-bottom: 15px;
+        color: var(--primary);
+        font-size: 2em;
+      }
+
+      #pauseMenu .button-container {
+        margin-top: 0;
+      }
+
+      #pauseMenu .button-container button {
+        padding: 8px 15px;
+        font-size: 0.9em;
+        margin: 6px;
+      }
+
+      /* Menu Quêtes */
+      #questsMenu {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.95);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 100;
+        overflow-y: auto;
+        padding: 15px;
+      }
+
+      #questsMenu.hidden {
+        display: none !important;
+      }
+
+      #questsContent {
+        width: 90%;
+        max-width: 500px;
+        background: rgba(10, 10, 15, 0.8);
+        border: 2px solid #9b59b6;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 0 20px rgba(155, 89, 182, 0.3);
+      }
+
+      #questsTitle {
+        font-size: 2.2em;
+        color: #9b59b6;
+        text-transform: uppercase;
+        letter-spacing: 4px;
+        text-shadow: 0 0 15px rgba(155, 89, 182, 0.6);
+        margin-bottom: 15px;
+        font-weight: 900;
+        font-style: italic;
+        text-align: center;
+      }
+
+      .quest-item {
+        background: rgba(15, 15, 20, 0.7);
+        border: 1px solid rgba(155, 89, 182, 0.3);
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .quest-item.completed {
+        border-color: #2ed573;
+        background: rgba(15, 15, 20, 0.9);
+      }
+
+      .quest-info h4 {
+        color: #9b59b6;
+        margin-bottom: 5px;
+        font-size: 1em;
+      }
+
+      .quest-progress {
+        font-size: 0.9em;
+        color: #a4b0be;
+      }
+
+      .quest-reward {
+        color: var(--warning);
+        font-weight: bold;
+        font-size: 1.1em;
+      }
+
+      #questsCloseBtn {
+        margin-top: 15px;
+        background: linear-gradient(135deg, #2f3542, #4a4a4a);
+        box-shadow: 0 8px 20px rgba(47, 53, 66, 0.4);
+      }
+
+      /* Menu de gestion des replays */
+      #replayManagerMenu {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.95);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 100;
+        overflow-y: auto;
+        padding: 15px;
+      }
+
+      #replayManagerMenu.hidden {
+        display: none !important;
+      }
+
+      #replayList {
+        max-height: 300px;
+        overflow-y: auto;
+        margin: 15px;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 12px;
+        border-radius: 6px;
+        border: 1px solid #ff4757;
+        width: 80%;
+        max-width: 500px;
+      }
+
+      #replayList::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      #replayList::-webkit-scrollbar-thumb {
+        background: #ff4757;
+        border-radius: 3px;
+      }
+
+      #replayList::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      #replayList div {
+        padding: 6px;
+        margin: 4px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background 0.2s;
+        font-size: 0.9em;
+      }
+
+      #replayList div:hover,
+      #replayList div:focus {
+        background: rgba(255, 255, 255, 0.08);
+        outline: 2px solid #ff4757;
+      }
+
+      #replayNameInput {
+        padding: 8px;
+        font-size: 0.95em;
+        border-radius: 4px;
+        border: 1px solid #ff4757;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        width: 280px;
+        text-align: center;
+        margin-bottom: 10px;
+      }
+
+      #replayNameInput:focus {
+        outline: 2px solid #ff4757;
+        border-color: #fff;
+      }
+
+      /* Notification XP */
+      #xpNotification {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(155, 89, 182, 0.95);
+        color: white;
+        padding: 20px 30px;
+        border-radius: 10px;
+        font-size: 1.5em;
+        font-weight: bold;
+        text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        z-index: 200;
+        display: none;
+        animation: fadeInOut 2s ease-in-out;
+        box-shadow: 0 0 30px rgba(155, 89, 182, 0.7);
+      }
+
+      @keyframes fadeInOut {
+        0%,
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.8);
+        }
+        10%,
+        90% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loadingScreen" aria-live="polite" aria-busy="true">
+      <div class="loading-stars" id="loadingStars" aria-hidden="true"></div>
+      <h1 class="loading-title">Classic Fighting Game</h1>
+      <p class="loading-subtitle">MASTERCLASS EDITION</p>
+      <div
+        class="loading-bar-container"
+        role="progressbar"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="0"
+      >
+        <div class="loading-bar" id="loadingBar"></div>
+      </div>
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <div class="loading-percentage" id="loadingPercentage" aria-live="polite">
+        0%
+      </div>
+    </div>
+
+    <audio id="bgMusic" src="gama.mp3" loop></audio>
+    <div id="scoreDisplay" aria-live="polite">
+      🏆 Score: <span id="scoreValue">0</span>
+    </div>
+    <div id="recordingIndicator" aria-live="assertive">
+      🎥 Enregistrement...
+    </div>
+    <div id="xpNotification">+<span id="xpGain">0</span> XP !</div>
+
+    <div id="gameContainer">
+      <div id="scanlines" aria-hidden="true"></div>
+      <div id="replayBadge" aria-live="polite">🔴 REPLAY</div>
+      <div id="levelText" aria-live="polite"></div>
+      <canvas id="game" aria-label="Canvas de jeu" tabindex="0"></canvas>
+
+      <button
+        class="record-btn"
+        id="btn-record"
+        onclick="toggleRecording()"
+        aria-label="Démarrer/arrêter l'enregistrement"
+        tabindex="0"
+      >
+        🎥
+      </button>
+      <button
+        class="record-btn"
+        id="btn-record-mobile"
+        onclick="toggleRecording()"
+        aria-label="Démarrer/arrêter l'enregistrement"
+        tabindex="0"
+      >
+        🎥
+      </button>
+
+      <!-- Menu Boutique -->
+      <div
+        id="shopMenu"
+        class="overlay hidden"
+        role="dialog"
+        aria-labelledby="shopTitle"
+        aria-modal="true"
+      >
+        <div id="shopContent">
+          <h1 id="shopTitle">🛒 BOUTIQUE</h1>
+          <div id="shopCoins" aria-live="polite">
+            💰 Pièces: <span id="coinsValue">0</span> | ⭐ XP:
+            <span id="shopXP">0</span>
+            <button
+              onclick="convertXPToCoins()"
+              class="btn-xp"
+              style="margin-left: 10px; font-size: 0.8em; padding: 4px 8px"
+              tabindex="0"
+            >
+              ➕ Convertir XP
+            </button>
+          </div>
+
+          <div id="xpSection">
+            <div id="xpText">
+              ⭐ Expérience : <span id="xpValue">0</span>/1000
+            </div>
+            <div id="xpProgressContainer">
+              <div id="xpProgress"></div>
+              <div id="xpProgressText">0%</div>
+            </div>
+            <button
+              onclick="openQuestsMenu()"
+              class="btn-xp"
+              style="margin-top: 8px; font-size: 0.9em"
+              tabindex="0"
+            >
+              📜 Voir les quêtes
+            </button>
+          </div>
+
+          <div id="dailyBonusSection">
+            <div id="dailyBonusText">🎁 Cadeau quotidien : 100 pièces !</div>
+            <div id="dailyBonusCountdown">
+              Prochain cadeau dans : <span id="countdownTimer">23:59:59</span>
+            </div>
+            <button
+              id="claimBonusBtn"
+              onclick="claimDailyBonus()"
+              class="btn-blue"
+              aria-label="Réclamer le cadeau quotidien"
+              tabindex="0"
+            >
+              🎉 Réclamer
+            </button>
+          </div>
+
+          <div id="shopItems" role="list"></div>
+          <button
+            id="shopCloseBtn"
+            onclick="closeShop()"
+            class="btn-gray"
+            aria-label="Fermer la boutique"
+            tabindex="0"
+          >
+            ❌ Fermer
+          </button>
+        </div>
+      </div>
+
+      <!-- Menu Quêtes -->
+      <div
+        id="questsMenu"
+        class="overlay hidden"
+        role="dialog"
+        aria-labelledby="questsTitle"
+        aria-modal="true"
+      >
+        <div id="questsContent">
+          <h1 id="questsTitle">📜 QUÊTES</h1>
+          <div id="questsList"></div>
+          <button
+            id="questsCloseBtn"
+            onclick="closeQuestsMenu()"
+            class="btn-gray"
+            aria-label="Fermer les quêtes"
+            tabindex="0"
+          >
+            ❌ Fermer
+          </button>
+        </div>
+      </div>
+
+      <!-- Menu Pause -->
+      <div
+        id="pauseMenu"
+        role="dialog"
+        aria-labelledby="pauseTitle"
+        aria-modal="true"
+        tabindex="-1"
+      >
+        <h2 id="pauseTitle">PAUSE</h2>
+        <div class="button-container">
+          <button
+            onclick="togglePause()"
+            class="btn-green"
+            aria-label="Reprendre la partie"
+            tabindex="0"
+          >
+            ▶️ Reprendre
+          </button>
+          <button
+            onclick="restartLevel()"
+            class="btn-warning"
+            aria-label="Recommencer le niveau"
+            tabindex="0"
+          >
+            🔄 Recommencer
+          </button>
+          <button
+            onclick="goToHome()"
+            class="btn-gray"
+            aria-label="Retour au menu principal"
+            tabindex="0"
+          >
+            🏠 Menu Principal
+          </button>
+          <button
+            onclick="openShop()"
+            class="btn-blue"
+            aria-label="Ouvrir la boutique"
+            tabindex="0"
+          >
+            🛒 Boutique
+          </button>
+          <button
+            onclick="openQuestsMenu()"
+            class="btn-xp"
+            aria-label="Voir les quêtes"
+            tabindex="0"
+          >
+            📜 Quêtes
+          </button>
+        </div>
+      </div>
+
+      <div
+        id="introScreen"
+        class="overlay hidden"
+        aria-label="Écran d'introduction"
+      >
+        <video
+          id="loadingVideo"
+          src="game.mp4"
+          playsinline
+          muted
+          autoplay
+          aria-hidden="true"
+        ></video>
+        <h1 style="font-size: 5em; margin-bottom: 0">FIGHTER</h1>
+        <h2>MASTERCLASS EDITION</h2>
+        <button
+          onclick="skipIntro()"
+          aria-label="Sauter l'introduction"
+          tabindex="0"
+          style="position: absolute; bottom: 40px"
+        >
+          ⏭️ Insert Coin
+        </button>
+      </div>
+
+      <div
+        id="deviceMenu"
+        class="overlay hidden"
+        aria-label="Sélection du périphérique"
+      >
+        <h1 style="font-size: 3em">Initialisation</h1>
+        <p>Calibrage du moteur neural...</p>
+        <div class="button-container">
+          <button
+            onclick="selectDevice('pc')"
+            aria-label="Jouer avec le clavier"
+            tabindex="0"
+          >
+            ⌨️ Clavier Arcade
+          </button>
+          <button
+            onclick="selectDevice('mobile')"
+            class="btn-blue"
+            aria-label="Jouer avec les contrôles tactiles"
+            tabindex="0"
+          >
+            📱 Tactile Neural
+          </button>
+        </div>
+      </div>
+
+      <div id="mainMenu" class="overlay hidden" aria-label="Menu principal">
+        <h1 style="font-size: 3.5em">
+          STAGE <span id="menuLevelDisplay">1</span>
+        </h1>
+        <div
+          style="
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ff4757;
+            margin-bottom: 20px;
+            box-shadow: 0 0 15px rgba(255, 71, 87, 0.2);
+            width: 80%;
+            max-width: 500px;
+          "
+        >
+          <p
+            id="controlsHint"
+            style="margin: 0; font-family: monospace; font-size: 1em"
+          ></p>
+          <p style="margin-top: 10px; font-size: 1.1em; color: #f1c40f">
+            🏆 Meilleur score: <span id="highScoreDisplay">0</span> | 💰 Pièces:
+            <span id="mainMenuCoins">0</span> | ⭐ XP:
+            <span id="mainMenuXP">0</span>
+          </p>
+        </div>
+        <div class="button-container">
+          <button
+            onclick="resetGame()"
+            class="btn-warning"
+            aria-label="Réinitialiser"
+            tabindex="0"
+          >
+            🔄 Réinitialiser
+          </button>
+          <button
+            onclick="openReplayManager()"
+            class="btn-blue"
+            aria-label="Gérer les replays"
+            tabindex="0"
+          >
+            📼 Replays
+          </button>
+          <button
+            onclick="openShop()"
+            class="btn-blue"
+            aria-label="Ouvrir la boutique"
+            tabindex="0"
+          >
+            🛒 Boutique
+          </button>
+          <button
+            onclick="openQuestsMenu()"
+            class="btn-xp"
+            aria-label="Voir les quêtes"
+            tabindex="0"
+          >
+            📜 Quêtes
+          </button>
+          <button
+            onclick="goToHome()"
+            class="btn-gray"
+            aria-label="Retour"
+            tabindex="0"
+          >
+            🔙 Retour
+          </button>
+          <button onclick="startGame()" aria-label="Commencer" tabindex="0">
+            ▶️ COMMENCER
+          </button>
+        </div>
+      </div>
+
+      <div
+        id="gameOverMenu"
+        class="overlay hidden"
+        role="dialog"
+        aria-labelledby="resultText"
+        aria-modal="true"
+      >
+        <h1 id="resultText" style="font-size: 4.5em">Victoire !</h1>
+        <div
+          style="margin-bottom: 15px; font-size: 1.3em; color: var(--warning)"
+        >
+          Score: <span id="finalScoreDisplay">0</span> | 💰 Pièces:
+          <span id="coinsEarnedDisplay">0</span> | ⭐ XP:
+          <span id="gameOverXP">0</span>
+        </div>
+        <div class="button-container">
+          <button
+            id="nextLevelBtn"
+            class="btn-green hidden"
+            onclick="nextLevel()"
+            aria-label="Suivant"
+            tabindex="0"
+          >
+            ⏭️ Suivant
+          </button>
+          <button
+            id="retryBtn"
+            class="hidden"
+            onclick="restartLevel()"
+            aria-label="Recommencer"
+            tabindex="0"
+          >
+            🔄 Revanche
+          </button>
+          <button
+            class="btn-blue"
+            onclick="playReplay()"
+            aria-label="Replay"
+            tabindex="0"
+          >
+            📼 Replay
+          </button>
+          <button
+            onclick="downloadVideo()"
+            id="downloadBtn"
+            class="btn-blue"
+            aria-label="Télécharger"
+            tabindex="0"
+          >
+            💾 Télécharger
+          </button>
+          <button
+            onclick="openReplayManager()"
+            class="btn-blue"
+            aria-label="Gérer les replays"
+            tabindex="0"
+          >
+            📁 Replays
+          </button>
+          <button
+            onclick="openShop()"
+            class="btn-blue"
+            aria-label="Boutique"
+            tabindex="0"
+          >
+            🛒 Boutique
+          </button>
+          <button
+            onclick="openQuestsMenu()"
+            class="btn-xp"
+            aria-label="Quêtes"
+            tabindex="0"
+          >
+            📜 Quêtes
+          </button>
+          <button
+            onclick="goToHome()"
+            class="btn-gray"
+            aria-label="Retour"
+            tabindex="0"
+          >
+            🏠 Menu
+          </button>
+        </div>
+      </div>
+
+      <div
+        id="replayManagerMenu"
+        class="overlay hidden"
+        role="dialog"
+        aria-labelledby="replayManagerTitle"
+        aria-modal="true"
+      >
+        <h1 id="replayManagerTitle" style="font-size: 2.5em">
+          Gestion des Replays
+        </h1>
+        <div
+          style="
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #ff4757;
+            width: 80%;
+            max-width: 500px;
+          "
+        >
+          <h3 style="color: #f1c40f; margin-bottom: 8px">
+            Replays sauvegardés :
+          </h3>
+          <div
+            id="replayList"
+            style="color: white; font-size: 1em"
+            role="listbox"
+          ></div>
+        </div>
+        <div class="button-container">
+          <input
+            type="text"
+            id="replayNameInput"
+            placeholder="Nom du replay"
+            aria-label="Nom du replay"
+            tabindex="0"
+          />
+          <button
+            onclick="saveCurrentReplay()"
+            class="btn-green"
+            aria-label="Sauvegarder"
+            tabindex="0"
+          >
+            💾 Sauvegarder
+          </button>
+          <button
+            onclick="loadReplayFromList()"
+            class="btn-blue"
+            aria-label="Charger"
+            tabindex="0"
+          >
+            ▶️ Charger
+          </button>
+          <button
+            onclick="deleteSelectedReplay()"
+            class="btn-warning"
+            aria-label="Supprimer"
+            tabindex="0"
+          >
+            🗑️ Supprimer
+          </button>
+          <button
+            onclick="closeReplayManager()"
+            class="btn-gray"
+            aria-label="Fermer"
+            tabindex="0"
+          >
+            ❌ Fermer
+          </button>
+        </div>
+      </div>
+
+      <div id="mobileControls" aria-label="Contrôles tactiles">
+        <button
+          class="record-btn"
+          id="btn-record-mobile"
+          onclick="toggleRecording()"
+          aria-label="Enregistrement"
+          tabindex="0"
+        >
+          🎥
+        </button>
+        <div class="dpad" role="grid" aria-label="Pavé directionnel">
+          <div class="dpad-row">
+            <button
+              class="t-btn"
+              id="btn-up"
+              role="button"
+              aria-label="Haut"
+              tabindex="0"
+              onpointerdown="handleMobileButtonDown('z', this)"
+              onpointerup="handleMobileButtonUp('z', this)"
+              onpointerleave="handleMobileButtonUp('z', this)"
+              onpointercancel="handleMobileButtonUp('z', this)"
+            >
+              ▲
+            </button>
+          </div>
+          <div class="dpad-row">
+            <button
+              class="t-btn"
+              id="btn-left"
+              role="button"
+              aria-label="Gauche"
+              tabindex="0"
+              onpointerdown="handleMobileButtonDown('q', this)"
+              onpointerup="handleMobileButtonUp('q', this)"
+              onpointerleave="handleMobileButtonUp('q', this)"
+              onpointercancel="handleMobileButtonUp('q', this)"
+            >
+              ◀
+            </button>
+            <button
+              class="t-btn"
+              id="btn-right"
+              role="button"
+              aria-label="Droite"
+              tabindex="0"
+              onpointerdown="handleMobileButtonDown('d', this)"
+              onpointerup="handleMobileButtonUp('d', this)"
+              onpointerleave="handleMobileButtonUp('d', this)"
+              onpointercancel="handleMobileButtonUp('d', this)"
+            >
+              ▶
+            </button>
+          </div>
+          <div class="dpad-row">
+            <button
+              class="t-btn"
+              id="btn-down"
+              role="button"
+              aria-label="Bas"
+              tabindex="0"
+              onpointerdown="handleMobileButtonDown('s', this)"
+              onpointerup="handleMobileButtonUp('s', this)"
+              onpointerleave="handleMobileButtonUp('s', this)"
+              onpointercancel="handleMobileButtonUp('s', this)"
+            >
+              ▼
+            </button>
+          </div>
+        </div>
+        <div class="action-btns" role="grid" aria-label="Boutons d'action">
+          <button
+            class="t-btn jump"
+            id="btn-jump"
+            role="button"
+            aria-label="Saut"
+            tabindex="0"
+            onpointerdown="handleMobileButtonDown('z', this)"
+            onpointerup="handleMobileButtonUp('z', this)"
+            onpointerleave="handleMobileButtonUp('z', this)"
+            onpointercancel="handleMobileButtonUp('z', this)"
+          >
+            SAUT
+          </button>
+          <button
+            class="t-btn"
+            id="btn-block"
+            role="button"
+            aria-label="Garde"
+            tabindex="0"
+            onpointerdown="handleMobileButtonDown('s', this)"
+            onpointerup="handleMobileButtonUp('s', this)"
+            onpointerleave="handleMobileButtonUp('s', this)"
+            onpointercancel="handleMobileButtonUp('s', this)"
+            style="border-color: #00cec9; color: #00cec9"
+          >
+            🛡️
+          </button>
+          <button
+            class="t-btn"
+            id="btn-atk"
+            role="button"
+            aria-label="Attaque"
+            tabindex="0"
+            onpointerdown="handleMobileButtonDown('f', this)"
+            onpointerup="handleMobileButtonUp('f', this)"
+            onpointerleave="handleMobileButtonUp('f', this)"
+            onpointercancel="handleMobileButtonUp('f', this)"
+            style="border-color: #ff4757; color: #ff4757"
+          >
+            👊
+          </button>
+          <button
+            class="t-btn"
+            id="btn-spec"
+            role="button"
+            aria-label="Spécial"
+            tabindex="0"
+            onpointerdown="handleMobileButtonDown('g', this)"
+            onpointerup="handleMobileButtonUp('g', this)"
+            onpointerleave="handleMobileButtonUp('g', this)"
+            onpointercancel="handleMobileButtonUp('g', this)"
+            style="border-color: #f1c40f; color: #f1c40f"
+          >
+            🔥
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ==================== CONSTANTES GLOBALES ====================
+      const canvas = document.getElementById('game');
+      const ctx = canvas.getContext('2d');
+      let CW = canvas.width;
+      let CH = canvas.height;
+      const FLOOR = 420;
+      const GRAVITY = 0.85;
+      const FRICTION = 0.82;
+
+      // État du jeu
+      let gameState = 'loading';
+      let isMobile = false;
+      let isPaused = false;
+      let keys = {};
+      let lastKey = { key: '', time: 0 };
+      let player, bot;
+
+      // Caméra
+      let camera = { x: CW / 2, y: 0, zoom: 0.75 };
+      let targetCamera = { x: CW / 2, y: 0, zoom: 0.75 };
+
+      // Effets
+      let shakeX = 0,
+        shakeY = 0,
+        shakeIntensity = 0;
+      let hitStopFrames = 0;
+      let gameTime = 0;
+
+      // Cinématique
+      let isCinematic = false;
+      let cinematicFrames = 0;
+      let cinematicAttacker = null;
+
+      // Replay
+      let replayData = [];
+      let currentReplayFrame = 0;
+
+      // Enregistrement vidéo
+      let mediaRecorder;
+      let recordedChunks = [];
+      let isRecording = false;
+      const recordingIndicator = document.getElementById('recordingIndicator');
+
+      // Particules
+      let particles = [];
+      let floatingTexts = [];
+      let trails = [];
+      let floorDecals = [];
+      let bigAnnouncer = { text: '', timer: 0, color: '#fff', scale: 1 };
+
+      // Arrière-plan
+      let bgStars = Array.from({ length: 80 }, () => ({
+        x: Math.random() * (CW * 2) - CW / 2,
+        y: Math.random() * (CH - 50),
+        s: Math.random() * 2.5 + 1,
+        speed: Math.random() * 0.8 + 0.2,
+      }));
+
+      // Données de progression
+      let currentLevel =
+        parseInt(localStorage.getItem('sfMasterclassLevel')) || 1;
+      let highScore =
+        parseInt(localStorage.getItem('sfMasterclassHighScore')) || 0;
+      let currentScore = 0;
+
+      // Système de pièces
+      let coins = parseInt(localStorage.getItem('sfMasterclassCoins')) || 0;
+
+      // Système de XP et quêtes
+      let xp = parseInt(localStorage.getItem('sfMasterclassXP')) || 0;
+      let quests = JSON.parse(localStorage.getItem('sfMasterclassQuests')) || {
+        wins: 0,
+        perfects: 0,
+        combos: 0,
+        damageDealt: 0,
+        dashes: 0,
+        blocks: 0,
+      };
+      let questsCompleted =
+        JSON.parse(localStorage.getItem('sfMasterclassQuestsCompleted')) || [];
+
+      // Gestion des items
+      let playerInventory = JSON.parse(
+        localStorage.getItem('sfMasterclassInventory')
+      ) || {
+        healthBoost: false,
+        energyBoost: false,
+        damageBoost: false,
+        speedBoost: false,
+        shield: false,
+        doubleJump: false,
+      };
+
+      // Bonus quotidien
+      let lastDailyBonus =
+        localStorage.getItem('sfMasterclassLastDailyBonus') || '0';
+      let dailyBonusCountdownInterval;
+
+      // Replays sauvegardés
+      let savedReplays =
+        JSON.parse(localStorage.getItem('sfMasterclassReplays')) || {};
+      let selectedReplayKey = null;
+
+      // ==================== FONCTIONS UTILITAIRES ====================
+      function vibrate(duration = 20) {
+        if (isMobile && 'vibrate' in navigator) {
+          try {
+            navigator.vibrate(duration);
+          } catch (e) {}
+        }
+      }
+
+      function resizeCanvas() {
+        const container = document.getElementById('gameContainer');
+        if (!container) return;
+        const ratio = 2;
+        let width = container.clientWidth;
+        let height = width / ratio;
+        if (height > window.innerHeight * 0.8) {
+          height = window.innerHeight * 0.8;
+          width = height * ratio;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        CW = canvas.width;
+        CH = canvas.height;
+        bgStars = Array.from({ length: 80 }, () => ({
+          x: Math.random() * (CW * 2) - CW / 2,
+          y: Math.random() * (CH - 50),
+          s: Math.random() * 2.5 + 1,
+          speed: Math.random() * 0.8 + 0.2,
+        }));
+        if (gameState === 'playing' || gameState === 'replaying') renderScene();
+      }
+
+      function handleMobileButtonDown(key, element) {
+        keys[key] = true;
+        element.style.background = 'rgba(255, 255, 255, 0.4)';
+        vibrate(10);
+      }
+
+      function handleMobileButtonUp(key, element) {
+        keys[key] = false;
+        keys[`${key}_held`] = false;
+        element.style.background = 'rgba(255, 255, 255, 0.05)';
+      }
+
+      function showXPNotification(amount) {
+        const notification = document.getElementById('xpNotification');
+        const xpGain = document.getElementById('xpGain');
+        xpGain.textContent = amount;
+        notification.style.display = 'block';
+        setTimeout(() => (notification.style.display = 'none'), 2000);
+      }
+
+      // ==================== Système de XP et Quêtes ====================
+      const questDefinitions = [
+        {
+          id: 'win5',
+          name: '5 Victoires',
+          target: 5,
+          current: 0,
+          reward: 200,
+          type: 'wins',
+        },
+        {
+          id: 'perfect3',
+          name: '3 Victoires Parfaites',
+          target: 3,
+          current: 0,
+          reward: 300,
+          type: 'perfects',
+        },
+        {
+          id: 'combo10',
+          name: '10 Combos',
+          target: 10,
+          current: 0,
+          reward: 150,
+          type: 'combos',
+        },
+        {
+          id: 'damage1000',
+          name: '1000 Dégâts',
+          target: 1000,
+          current: 0,
+          reward: 250,
+          type: 'damageDealt',
+        },
+        {
+          id: 'dash20',
+          name: '20 Dashes',
+          target: 20,
+          current: 0,
+          reward: 100,
+          type: 'dashes',
+        },
+        {
+          id: 'block15',
+          name: '15 Gardes',
+          target: 15,
+          current: 0,
+          reward: 120,
+          type: 'blocks',
+        },
+      ];
+
+      function updateQuestProgress(type, amount = 1) {
+        if (!quests)
+          quests = {
+            wins: 0,
+            perfects: 0,
+            combos: 0,
+            damageDealt: 0,
+            dashes: 0,
+            blocks: 0,
+          };
+
+        switch (type) {
+          case 'wins':
+            quests.wins += amount;
+            break;
+          case 'perfects':
+            quests.perfects += amount;
+            break;
+          case 'combos':
+            quests.combos += amount;
+            break;
+          case 'damageDealt':
+            quests.damageDealt += amount;
+            break;
+          case 'dashes':
+            quests.dashes += amount;
+            break;
+          case 'blocks':
+            quests.blocks += amount;
+            break;
+        }
+
+        localStorage.setItem('sfMasterclassQuests', JSON.stringify(quests));
+        checkQuests();
+      }
+
+      function checkQuests() {
+        let newCompletions = [];
+
+        questDefinitions.forEach((quest) => {
+          const currentProgress = quests[quest.type] || 0;
+          if (
+            currentProgress >= quest.target &&
+            !questsCompleted.includes(quest.id)
+          ) {
+            newCompletions.push(quest);
+            questsCompleted.push(quest.id);
+          }
+        });
+
+        if (newCompletions.length > 0) {
+          localStorage.setItem(
+            'sfMasterclassQuestsCompleted',
+            JSON.stringify(questsCompleted)
+          );
+          newCompletions.forEach((quest) => {
+            xp += quest.reward;
+            showXPNotification(quest.reward);
+          });
+          updateXPDisplay();
+          localStorage.setItem('sfMasterclassXP', xp);
+        }
+      }
+
+      function initQuestsMenu() {
+        const questsList = document.getElementById('questsList');
+        questsList.innerHTML = '';
+
+        questDefinitions.forEach((quest) => {
+          const currentProgress = quests[quest.type] || 0;
+          const isCompleted = questsCompleted.includes(quest.id);
+          const progress = Math.min(currentProgress, quest.target);
+          const percentage = Math.floor((progress / quest.target) * 100);
+
+          const questElement = document.createElement('div');
+          questElement.className = `quest-item ${
+            isCompleted ? 'completed' : ''
+          }`;
+          questElement.innerHTML = `
+          <div class="quest-info">
+            <h4>${quest.name}</h4>
+            <div class="quest-progress">${progress}/${quest.target}</div>
+          </div>
+          <div class="quest-reward">+${quest.reward} XP</div>
+        `;
+          questsList.appendChild(questElement);
+        });
+      }
+
+      function openQuestsMenu() {
+        initQuestsMenu();
+        document.getElementById('questsMenu').classList.remove('hidden');
+        gameState = 'quests';
+        const firstButton = document.querySelector('#questsMenu button');
+        if (firstButton) firstButton.focus();
+      }
+
+      function closeQuestsMenu() {
+        document.getElementById('questsMenu').classList.add('hidden');
+        gameState = 'menu';
+        const mainMenuButton = document.querySelector('#mainMenu button');
+        if (mainMenuButton) mainMenuButton.focus();
+      }
+
+      function convertXPToCoins() {
+        const conversionRate = 1000;
+        const coinsPerConversion = 100;
+
+        if (xp >= conversionRate) {
+          const conversions = Math.floor(xp / conversionRate);
+          const totalCoins = conversions * coinsPerConversion;
+          const xpUsed = conversions * conversionRate;
+
+          coins += totalCoins;
+          xp -= xpUsed;
+
+          localStorage.setItem('sfMasterclassCoins', coins);
+          localStorage.setItem('sfMasterclassXP', xp);
+
+          updateCoinsDisplay();
+          updateXPDisplay();
+
+          vibrate(30);
+          showXPNotification(-xpUsed);
+          alert(`✅ Converti ${xpUsed} XP en ${totalCoins} pièces !`);
+        } else {
+          vibrate(20);
+          alert(
+            `❌ Il te faut au moins ${
+              conversionRate - xp
+            } XP de plus pour convertir !`
+          );
+        }
+      }
+
+      function updateXPDisplay() {
+        const xpElements = document.querySelectorAll(
+          '#mainMenuXP, #shopXP, #gameOverXP'
+        );
+        xpElements.forEach((el) => {
+          if (el) el.textContent = xp;
+        });
+
+        // Mettre à jour la barre de progression XP
+        const xpProgress = document.getElementById('xpProgress');
+        const xpProgressText = document.getElementById('xpProgressText');
+        const xpValue = document.getElementById('xpValue');
+
+        if (xpProgress && xpProgressText) {
+          const percentage = Math.min(100, ((xp % 1000) / 1000) * 100);
+          xpProgress.style.width = `${percentage}%`;
+          xpProgressText.textContent = `${Math.floor(percentage)}%`;
+        }
+
+        if (xpValue) {
+          xpValue.textContent = xp;
+        }
+
+        localStorage.setItem('sfMasterclassXP', xp);
+      }
+
+      function updateCoinsDisplay() {
+        const coinElements = document.querySelectorAll(
+          '#coinsValue, #mainMenuCoins, #coinsEarnedDisplay'
+        );
+        coinElements.forEach((el) => {
+          if (el) el.textContent = coins;
+        });
+        localStorage.setItem('sfMasterclassCoins', coins);
+      }
+
+      // ==================== BOUTIQUE ====================
+      const shopItems = [
+        {
+          id: 'healthBoost',
+          name: 'Boost de Vie',
+          description: '+50% de vie max',
+          cost: 200,
+          effect: () => {
+            if (player) {
+              player.maxHealth = 150;
+              player.health = 150;
+              player.displayHealth = 150;
+            }
+          },
+        },
+        {
+          id: 'energyBoost',
+          name: "Boost d'Énergie",
+          description: "+50% d'énergie max",
+          cost: 250,
+          effect: () => {
+            if (player) player.maxEnergy = 150;
+          },
+        },
+        {
+          id: 'damageBoost',
+          name: 'Boost de Dégâts',
+          description: '+30% de dégâts',
+          cost: 300,
+          effect: () => {
+            if (player) player.damageMultiplier = 1.3;
+          },
+        },
+        {
+          id: 'speedBoost',
+          name: 'Boost de Vitesse',
+          description: '+20% de vitesse',
+          cost: 200,
+          effect: () => {
+            if (player) {
+              player.baseSpeed = 7.8;
+              player.speed = 7.8;
+            }
+          },
+        },
+        {
+          id: 'shield',
+          name: 'Bouclier Temporaire',
+          description: '50% de dégâts en moins (10s)',
+          cost: 150,
+          effect: () => {
+            if (player) {
+              player.shieldActive = true;
+              player.shieldTimer = 600;
+            }
+          },
+        },
+        {
+          id: 'doubleJump',
+          name: 'Double Saut',
+          description: "Sauter 2 fois en l'air",
+          cost: 350,
+          effect: () => {
+            if (player) {
+              player.canDoubleJump = true;
+              player.hasDoubleJumped = false;
+            }
+          },
+        },
+      ];
+
+      function initShop() {
+        const shopItemsContainer = document.getElementById('shopItems');
+        shopItemsContainer.innerHTML = '';
+
+        shopItems.forEach((item) => {
+          const itemElement = document.createElement('div');
+          itemElement.className = 'shop-item';
+          itemElement.setAttribute('role', 'listitem');
+
+          const isOwned = playerInventory[item.id];
+          const canAfford = coins >= item.cost;
+
+          itemElement.innerHTML = `
+          <h3>${item.name}</h3>
+          <p>${item.description}</p>
+          ${
+            isOwned
+              ? '<div class="item-owned">✅ ACHETÉ</div>'
+              : `<div class="item-cost">💰 ${item.cost}</div>`
+          }
+          <button ${
+            isOwned ? 'disabled' : canAfford ? '' : 'disabled'
+          } onclick="buyItem('${item.id}')" ${isOwned ? '' : 'tabindex="0"'}>
+            ${isOwned ? 'Déjà possédé' : canAfford ? 'Acheter' : 'Pas assez'}
+          </button>
+        `;
+          shopItemsContainer.appendChild(itemElement);
+        });
+
+        updateCoinsDisplay();
+        updateXPDisplay();
+        updateDailyBonusTimer();
+      }
+
+      function openShop() {
+        // Si on est en train de jouer, mettre en pause
+        if (gameState === 'playing') {
+          isPaused = true;
+          gameState = 'paused';
+          document.getElementById('pauseMenu').style.display = 'none';
+        }
+
+        initShop();
+        document.getElementById('shopMenu').classList.remove('hidden');
+        gameState = 'shop';
+        updateDailyBonusTimer();
+
+        const firstButton = document.querySelector(
+          '#shopMenu button:not([disabled])'
+        );
+        if (firstButton) firstButton.focus();
+      }
+
+      function closeShop() {
+        document.getElementById('shopMenu').classList.add('hidden');
+
+        // Reprendre le jeu si on était en pause
+        if (isPaused) {
+          isPaused = false;
+          gameState = 'playing';
+          requestAnimationFrame(gameLoop);
+        } else {
+          gameState = 'menu';
+        }
+
+        const mainMenuButton = document.querySelector(
+          '#mainMenu button, #pauseMenu button'
+        );
+        if (mainMenuButton) mainMenuButton.focus();
+      }
+
+      function buyItem(itemId) {
+        const item = shopItems.find((i) => i.id === itemId);
+        if (!item) return;
+
+        if (playerInventory[itemId]) {
+          vibrate(20);
+          alert('Tu possèdes déjà cet item !');
+          return;
+        }
+
+        if (coins < item.cost) {
+          vibrate(20);
+          alert(
+            `Pas assez de pièces ! Il t'en faut ${item.cost - coins} de plus.`
+          );
+          return;
+        }
+
+        coins -= item.cost;
+        playerInventory[itemId] = true;
+        localStorage.setItem('sfMasterclassCoins', coins);
+        localStorage.setItem(
+          'sfMasterclassInventory',
+          JSON.stringify(playerInventory)
+        );
+
+        item.effect();
+        updateCoinsDisplay();
+        initShop();
+        playSFX('coin');
+        vibrate(30);
+        alert(`✅ Félicitations ! Tu as acheté ${item.name}.`);
+      }
+
+      // ==================== BONUS QUOTIDIEN ====================
+      function updateDailyBonusTimer() {
+        const now = new Date();
+        const lastBonusDate = new Date(parseInt(lastDailyBonus));
+        const nextBonusDate = new Date(lastBonusDate);
+        nextBonusDate.setDate(nextBonusDate.getDate() + 1);
+
+        const claimBonusBtn = document.getElementById('claimBonusBtn');
+
+        if (now >= nextBonusDate) {
+          document.getElementById('dailyBonusCountdown').textContent =
+            'Prêt à être réclamé !';
+          if (claimBonusBtn) {
+            claimBonusBtn.disabled = false;
+            claimBonusBtn.textContent = '🎉 Réclamer';
+            claimBonusBtn.classList.add('has-gift');
+          }
+        } else {
+          const diff = nextBonusDate - now;
+          const hours = Math.floor(diff / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+          if (document.getElementById('countdownTimer')) {
+            document.getElementById('countdownTimer').textContent = `${hours
+              .toString()
+              .padStart(2, '0')}:${minutes
+              .toString()
+              .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+          }
+          if (claimBonusBtn) {
+            claimBonusBtn.disabled = true;
+            claimBonusBtn.textContent = '⏳ En attente...';
+            claimBonusBtn.classList.remove('has-gift');
+          }
+        }
+      }
+
+      function claimDailyBonus() {
+        const now = new Date();
+        const lastBonusDate = new Date(parseInt(lastDailyBonus));
+        const nextBonusDate = new Date(lastBonusDate);
+        nextBonusDate.setDate(nextBonusDate.getDate() + 1);
+
+        if (now < nextBonusDate) {
+          vibrate(20);
+          alert('Tu dois attendre encore avant de réclamer ton cadeau !');
+          return;
+        }
+
+        coins += 100;
+        xp += 50;
+        localStorage.setItem('sfMasterclassCoins', coins);
+        localStorage.setItem('sfMasterclassXP', xp);
+        lastDailyBonus = now.getTime().toString();
+        localStorage.setItem('sfMasterclassLastDailyBonus', lastDailyBonus);
+
+        updateCoinsDisplay();
+        updateXPDisplay();
+        updateDailyBonusTimer();
+        playSFX('coin');
+        vibrate(50);
+        showXPNotification(50);
+        alert('Félicitations ! +100 pièces et +50 XP ! 🎉');
+      }
+
+      function startDailyBonusTimer() {
+        updateDailyBonusTimer();
+        dailyBonusCountdownInterval = setInterval(updateDailyBonusTimer, 1000);
+      }
+
+      function stopDailyBonusTimer() {
+        if (dailyBonusCountdownInterval)
+          clearInterval(dailyBonusCountdownInterval);
+      }
+
+      // ==================== ÉCRAN DE LOADING ====================
+      function createLoadingStars() {
+        const starsContainer = document.getElementById('loadingStars');
+        for (let i = 0; i < 100; i++) {
+          const star = document.createElement('div');
+          star.className = 'star';
+          star.style.left = `${Math.random() * 100}%`;
+          star.style.top = `${Math.random() * 100}%`;
+          star.style.animationDelay = `${Math.random() * 2}s`;
+          star.style.animationDuration = `${2 + Math.random() * 2}s`;
+          starsContainer.appendChild(star);
+        }
+      }
+
+      function startLoadingScreen() {
+        const loadingBar = document.getElementById('loadingBar');
+        const loadingPercentage = document.getElementById('loadingPercentage');
+        let progress = 0;
+        const duration = 5000;
+        const startTime = Date.now();
+
+        const updateProgress = () => {
+          const elapsed = Date.now() - startTime;
+          progress = Math.min(100, (elapsed / duration) * 100);
+          if (loadingBar) loadingBar.style.width = `${progress}%`;
+          if (loadingPercentage)
+            loadingPercentage.textContent = `${Math.floor(progress)}%`;
+
+          if (progress < 100) {
+            requestAnimationFrame(updateProgress);
+          } else {
+            setTimeout(() => {
+              document.getElementById('loadingScreen').classList.add('hidden');
+              document.getElementById('introScreen').classList.remove('hidden');
+              const video = document.getElementById('loadingVideo');
+              if (video) {
+                video.play().catch((e) => {
+                  document.getElementById('loadingScreen').addEventListener(
+                    'click',
+                    () => {
+                      document
+                        .getElementById('loadingScreen')
+                        .classList.add('hidden');
+                      video.play();
+                    },
+                    { once: true }
+                  );
+                });
+              }
+            }, 300);
+          }
+        };
+        requestAnimationFrame(updateProgress);
+      }
+
+      // ==================== AUDIO ====================
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      let actx;
+
+      function initAudio() {
+        if (!actx) actx = new AudioContext();
+        if (actx.state === 'suspended') actx.resume();
+      }
+
+      function playSFX(type, intensity = 1) {
+        if (!actx) return;
+        const osc = actx.createOscillator();
+        const gain = actx.createGain();
+        osc.connect(gain);
+        gain.connect(actx.destination);
+        const now = actx.currentTime;
+
+        switch (type) {
+          case 'hit':
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(120 * intensity, now);
+            osc.frequency.exponentialRampToValueAtTime(10, now + 0.2);
+            gain.gain.setValueAtTime(0.6, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            osc.start(now);
+            osc.stop(now + 0.2);
+            break;
+          case 'parry':
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, now);
+            osc.frequency.linearRampToValueAtTime(1200, now + 0.1);
+            gain.gain.setValueAtTime(0.8, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+            osc.start(now);
+            osc.stop(now + 0.3);
+            break;
+          case 'dash':
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(400, now);
+            osc.frequency.exponentialRampToValueAtTime(50, now + 0.15);
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+            osc.start(now);
+            osc.stop(now + 0.15);
+            break;
+          case 'super':
+            const osc2 = actx.createOscillator();
+            const gain2 = actx.createGain();
+            osc2.connect(gain2);
+            gain2.connect(actx.destination);
+            osc2.type = 'triangle';
+            osc2.frequency.setValueAtTime(50, now);
+            osc2.frequency.linearRampToValueAtTime(800, now + 1);
+            gain2.gain.setValueAtTime(0.8, now);
+            gain2.gain.linearRampToValueAtTime(0.01, now + 1.5);
+            osc2.start(now);
+            osc2.stop(now + 1.5);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.linearRampToValueAtTime(30, now + 0.5);
+            gain.gain.setValueAtTime(0.4, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 1);
+            osc.start(now);
+            osc.stop(now + 1);
+            break;
+          case 'jump':
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(300, now);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+            osc.start(now);
+            osc.stop(now + 0.1);
+            break;
+          case 'coin':
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, now);
+            osc.frequency.linearRampToValueAtTime(1200, now + 0.1);
+            gain.gain.setValueAtTime(0.4, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            osc.start(now);
+            osc.stop(now + 0.2);
+            const coinOsc = actx.createOscillator();
+            const coinGain = actx.createGain();
+            coinOsc.connect(coinGain);
+            coinGain.connect(actx.destination);
+            coinOsc.type = 'sine';
+            coinOsc.frequency.setValueAtTime(1500, now);
+            coinGain.gain.setValueAtTime(0.3, now);
+            coinGain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+            coinOsc.start(now);
+            coinOsc.stop(now + 0.3);
+            break;
+        }
+      }
+
+      // ==================== GESTION DES MENUS ====================
+      const video = document.getElementById('loadingVideo');
+      if (video) video.addEventListener('ended', skipIntro);
+
+      function skipIntro() {
+        document.getElementById('introScreen').classList.add('hidden');
+        document.getElementById('deviceMenu').classList.remove('hidden');
+        if (video) {
+          video.pause();
+          video.currentTime = 0;
+        }
+        gameState = 'menu';
+        updateScoreDisplay();
+        updateCoinsDisplay();
+        updateXPDisplay();
+      }
+
+      function selectDevice(type) {
+        initAudio();
+        const music = document.getElementById('bgMusic');
+        if (music) {
+          music.volume = 0.5;
+          music.play().catch((e) => {});
+        }
+
+        isMobile = type === 'mobile';
+        document.getElementById('deviceMenu').classList.add('hidden');
+        document.getElementById('mainMenu').classList.remove('hidden');
+
+        document.getElementById('menuLevelDisplay').textContent = currentLevel;
+        updateScoreDisplay();
+        updateCoinsDisplay();
+        updateXPDisplay();
+
+        const hint = document.getElementById('controlsHint');
+        if (hint) {
+          if (isMobile) {
+            hint.innerHTML =
+              "<span style='color:#2ed573'>Mode Tactile.</span> Utilisez les boutons à l'écran. <span style='color:#f1c40f'>🎥</span> : Enregistrement";
+            setupMobileControls();
+          } else {
+            hint.innerHTML = `
+            <span style='color:#7bed9f'>Q/D</span> : Déplacement |
+            <span style='color:#7bed9f'>Double Q/D</span> : Dash<br>
+            <span style='color:#7bed9f'>Z</span> : Saut |
+            <span style='color:#00cec9'>S</span> : Garde<br>
+            <span style='color:#ff4757'>F</span> : Frappe |
+            <span style='color:#f1c40f'>G</span> : Spécial<br>
+            <span style='color:#f1c40f'>R</span> : Enregistrement |
+            <span style='color:#ff4757'>ESPACE</span> : Pause |
+            <span style='color:#1e90ff'>B</span> : Boutique
+          `;
+          }
+        }
+
+        const firstButton = document.querySelector('#mainMenu button');
+        if (firstButton) firstButton.focus();
+      }
+
+      // ==================== JEU PRINCIPAL ====================
+      function startGame() {
+        initAudio();
+        document.getElementById('mainMenu').classList.add('hidden');
+        document.getElementById('gameOverMenu').classList.add('hidden');
+        document.getElementById('replayManagerMenu').classList.add('hidden');
+        document.getElementById('shopMenu').classList.add('hidden');
+        document.getElementById('questsMenu').classList.add('hidden');
+        document.getElementById('pauseMenu').style.display = 'none';
+        document.getElementById('btn-record').style.display = 'flex';
+
+        if (isMobile) {
+          document.getElementById('mobileControls').style.display = 'flex';
+        } else {
+          document.getElementById('mobileControls').style.display = 'none';
+        }
+
+        document.getElementById(
+          'levelText'
+        ).textContent = `STAGE ${currentLevel}`;
+        announce('READY...', '#f1c40f', 40, 0.8);
+        setTimeout(() => announce('FIGHT!', '#ff4757', 40, 1.2), 800);
+
+        player = new Fighter(250, '#2ed573', false);
+        bot = new Fighter(700, '#ff4757', true);
+
+        // Appliquer les items achetés
+        if (playerInventory.healthBoost) {
+          player.maxHealth = 150;
+          player.health = 150;
+          player.displayHealth = 150;
+        }
+        if (playerInventory.energyBoost) {
+          player.maxEnergy = 150;
+        }
+        if (playerInventory.damageBoost) {
+          player.damageMultiplier = 1.3;
+        }
+        if (playerInventory.speedBoost) {
+          player.baseSpeed = 7.8;
+          player.speed = 7.8;
+        }
+        if (playerInventory.doubleJump) {
+          player.canDoubleJump = true;
+          player.hasDoubleJumped = false;
+        }
+
+        gameState = 'playing';
+        replayData = [];
+        particles = [];
+        floatingTexts = [];
+        trails = [];
+        floorDecals = [];
+        hitStopFrames = 0;
+        gameTime = 0;
+        isCinematic = false;
+        currentScore = 0;
+        updateScoreDisplay();
+
+        camera = { x: CW / 2, y: 0, zoom: 0.75 };
+        targetCamera = { x: CW / 2, y: 0, zoom: 0.75 };
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      function nextLevel() {
+        let levelReward = 50 + currentLevel * 20;
+        let xpReward = 100 + currentLevel * 50;
+
+        if (player.health === player.maxHealth) {
+          levelReward *= 1.5;
+          xpReward *= 1.5;
+          updateQuestProgress('perfects', 1);
+        }
+
+        coins += Math.floor(levelReward);
+        xp += Math.floor(xpReward);
+        updateQuestProgress('wins', 1);
+
+        localStorage.setItem('sfMasterclassCoins', coins);
+        localStorage.setItem('sfMasterclassXP', xp);
+
+        document.getElementById('coinsEarnedDisplay').textContent =
+          Math.floor(levelReward);
+        document.getElementById('gameOverXP').textContent =
+          Math.floor(xpReward);
+
+        currentLevel++;
+        localStorage.setItem('sfMasterclassLevel', currentLevel);
+        if (currentScore > highScore) {
+          highScore = currentScore;
+          localStorage.setItem('sfMasterclassHighScore', highScore);
+        }
+
+        updateScoreDisplay();
+        updateCoinsDisplay();
+        updateXPDisplay();
+        checkQuests();
+        showXPNotification(xpReward);
+
+        startGame();
+      }
+
+      function restartLevel() {
+        startGame();
+      }
+
+      function goToHome() {
+        const music = document.getElementById('bgMusic');
+        if (music) {
+          music.pause();
+          music.currentTime = 0;
+        }
+
+        gameState = 'intro';
+        document.getElementById('gameOverMenu').classList.add('hidden');
+        document.getElementById('mainMenu').classList.add('hidden');
+        document.getElementById('replayManagerMenu').classList.add('hidden');
+        document.getElementById('shopMenu').classList.add('hidden');
+        document.getElementById('questsMenu').classList.add('hidden');
+        document.getElementById('mobileControls').style.display = 'none';
+        document.getElementById('btn-record').style.display = 'none';
+        document.getElementById('btn-record-mobile').style.display = 'none';
+        document.getElementById('replayBadge').style.display = 'none';
+        document.getElementById('pauseMenu').style.display = 'none';
+        recordingIndicator.style.display = 'none';
+
+        camera = { x: CW / 2, y: 0, zoom: 0.75 };
+        targetCamera = { x: CW / 2, y: 0, zoom: 0.75 };
+        ctx.clearRect(0, 0, CW, CH);
+
+        if (isRecording) stopRecording();
+
+        document.getElementById('introScreen').classList.remove('hidden');
+        const vid = document.getElementById('loadingVideo');
+        if (vid) {
+          vid.currentTime = 0;
+          vid.play();
+        }
+
+        updateScoreDisplay();
+        updateCoinsDisplay();
+        updateXPDisplay();
+      }
+
+      function resetGame() {
+        if (
+          confirm(
+            'Voulez-vous vraiment tout réinitialiser ? (Progression, pièces, XP, quêtes)'
+          )
+        ) {
+          localStorage.removeItem('sfMasterclassLevel');
+          localStorage.removeItem('sfMasterclassHighScore');
+          localStorage.removeItem('sfMasterclassCoins');
+          localStorage.removeItem('sfMasterclassXP');
+          localStorage.removeItem('sfMasterclassInventory');
+          localStorage.removeItem('sfMasterclassLastDailyBonus');
+          localStorage.removeItem('sfMasterclassQuests');
+          localStorage.removeItem('sfMasterclassQuestsCompleted');
+          localStorage.removeItem('sfMasterclassReplays');
+
+          currentLevel = 1;
+          highScore = 0;
+          currentScore = 0;
+          coins = 0;
+          xp = 0;
+          playerInventory = {
+            healthBoost: false,
+            energyBoost: false,
+            damageBoost: false,
+            speedBoost: false,
+            shield: false,
+            doubleJump: false,
+          };
+          quests = {
+            wins: 0,
+            perfects: 0,
+            combos: 0,
+            damageDealt: 0,
+            dashes: 0,
+            blocks: 0,
+          };
+          questsCompleted = [];
+          lastDailyBonus = '0';
+          savedReplays = {};
+
+          updateScoreDisplay();
+          updateCoinsDisplay();
+          updateXPDisplay();
+          vibrate(50);
+          alert('Tout a été réinitialisé !');
+        }
+      }
+
+      function updateScoreDisplay() {
+        document.getElementById('scoreValue').textContent = currentScore;
+        document.getElementById('highScoreDisplay').textContent = highScore;
+        document.getElementById('finalScoreDisplay').textContent = currentScore;
+        document.getElementById('menuLevelDisplay').textContent = currentLevel;
+      }
+
+      function togglePause() {
+        if (gameState !== 'playing' && gameState !== 'paused') return;
+
+        isPaused = !isPaused;
+        gameState = isPaused ? 'paused' : 'playing';
+
+        const pauseMenu = document.getElementById('pauseMenu');
+        if (pauseMenu) {
+          pauseMenu.style.display = isPaused ? 'block' : 'none';
+          if (isPaused) {
+            const firstButton = pauseMenu.querySelector('button');
+            if (firstButton) firstButton.focus();
+          }
+        }
+
+        if (!isPaused) {
+          requestAnimationFrame(gameLoop);
+        }
+      }
+
+      // ==================== CLASSE FIGHTER ====================
+      class Fighter {
+        constructor(x, color, isBot = false) {
+          this.w = 60;
+          this.h = 120;
+          this.x = x;
+          this.y = FLOOR - this.h;
+          this.vx = 0;
+          this.vy = 0;
+          this.knockback = 0;
+
+          this.isBot = isBot;
+          this.color = color;
+          this.baseSpeed = 6.5;
+          this.speed = this.baseSpeed;
+          this.jumpPower = -17;
+          this.maxHealth = 100;
+          this.health = this.maxHealth;
+          this.displayHealth = this.maxHealth;
+          this.maxEnergy = 100;
+          this.energy = 0;
+
+          this.facingRight = !isBot;
+          this.blocking = false;
+          this.blockTimer = 0;
+
+          this.isAttacking = false;
+          this.attackType = 0;
+          this.attackDuration = 0;
+          this.attackCooldown = 0;
+
+          this.combo = 0;
+          this.comboTimer = 0;
+          this.stunFrames = 0;
+          this.invincible = false;
+          this.animOffset = 0;
+
+          this.damageMultiplier = 1;
+          this.canDoubleJump = false;
+          this.hasDoubleJumped = false;
+          this.shieldActive = false;
+          this.shieldTimer = 0;
+
+          this.applyLevelScaling();
+        }
+
+        applyLevelScaling() {
+          if (this.isBot) {
+            this.maxHealth = 100 + currentLevel * 30;
+            this.health = this.maxHealth;
+            this.speed = Math.min(10, this.baseSpeed + currentLevel * 0.7);
+          } else {
+            this.health = this.maxHealth;
+            this.energy = 0;
+          }
+          this.displayHealth = this.maxHealth;
+        }
+
+        dash(dirStr) {
+          if (this.stunFrames > 0 || this.isAttacking) return;
+          const dir = dirStr === 'right' ? 1 : -1;
+          this.vx = dir * 25;
+          this.invincible = true;
+          setTimeout(() => (this.invincible = false), 200);
+          playSFX('dash');
+          vibrate(30);
+
+          for (let i = 0; i < 5; i++) {
+            trails.push({
+              x: this.x,
+              y: this.y,
+              w: this.w,
+              h: this.h,
+              color: '#fff',
+              life: 15,
+              dir: this.facingRight,
+            });
+          }
+          createDust(this.x + this.w / 2, FLOOR, this.color, 15);
+
+          if (!this.isBot) updateQuestProgress('dashes');
+        }
+
+        triggerSuper(target) {
+          if (this.energy < 100 || this.stunFrames > 0) return;
+          this.energy = 0;
+          this.invincible = true;
+
+          isCinematic = true;
+          cinematicFrames = 90;
+          cinematicAttacker = this;
+          playSFX('super');
+          vibrate(100);
+          announce('SUPER ART', this.color, 60, 1.5);
+
+          setTimeout(() => {
+            this.invincible = false;
+            const dist = Math.abs(this.x - target.x);
+            if (dist < 250) {
+              const damage = this.isBot
+                ? (25 + currentLevel * 3) * this.damageMultiplier
+                : 50 * this.damageMultiplier;
+              target.health -= damage;
+              target.stunFrames = 40;
+              target.knockback = this.facingRight ? 35 : -35;
+              hitStopFrames = 15;
+              triggerShake(40);
+              playSFX('hit', 3);
+              spawnParticles(
+                target.x + target.w / 2,
+                target.y + target.h / 2,
+                this.color,
+                50,
+                'slash'
+              );
+              floorDecals.push({
+                x: target.x,
+                y: FLOOR,
+                w: 150,
+                life: 1000,
+                color: this.color,
+              });
+              floatingTexts.push({
+                x: target.x,
+                y: target.y - 20,
+                text: 'ULTIMATE HIT!',
+                life: 60,
+                color: '#fff',
+                scale: 1.5,
+              });
+
+              if (!this.isBot) {
+                currentScore += 100;
+                updateQuestProgress('damageDealt', Math.floor(damage));
+                updateScoreDisplay();
+              }
+            }
+          }, 1500);
+        }
+
+        update() {
+          if (this.shieldActive) {
+            this.shieldTimer--;
+            if (this.shieldTimer <= 0) this.shieldActive = false;
+          }
+
+          if (this.y >= FLOOR - this.h) this.hasDoubleJumped = false;
+          if (this.stunFrames > 0) {
+            this.stunFrames--;
+            this.isAttacking = false;
+          }
+
+          this.vy += GRAVITY;
+          this.x += this.vx + this.knockback;
+          this.y += this.vy;
+
+          this.vx *= FRICTION;
+          this.knockback *= 0.8;
+          if (Math.abs(this.knockback) < 0.5) this.knockback = 0;
+          if (Math.abs(this.vx) < 0.5) this.vx = 0;
+
+          if (this.y + this.h >= FLOOR) {
+            if (this.vy > 12)
+              createDust(this.x + this.w / 2, FLOOR, this.color, 8);
+            this.y = FLOOR - this.h;
+            this.vy = 0;
+          }
+
+          if (this.x < -200) this.x = -200;
+          if (this.x + this.w > CW + 200) this.x = CW + 200 - this.w;
+
+          if (this.blocking) this.blockTimer++;
+          else this.blockTimer = 0;
+
+          if (this.attackCooldown > 0) this.attackCooldown--;
+          if (this.attackDuration > 0) {
+            this.attackDuration--;
+            if (this.attackType === 2 && this.attackDuration % 2 === 0) {
+              trails.push({
+                x: this.x,
+                y: this.y,
+                w: this.w,
+                h: this.h,
+                color: this.color,
+                life: 8,
+                dir: this.facingRight,
+              });
+            }
+          } else {
+            this.isAttacking = false;
+          }
+
+          if (this.comboTimer > 0) this.comboTimer--;
+          else this.combo = 0;
+
+          if (this.displayHealth > this.health) this.displayHealth -= 0.6;
+
+          if (this.vy === 0 && Math.abs(this.vx) > 1)
+            this.animOffset = Math.sin(gameTime * 0.5) * 6;
+          else if (this.vy === 0)
+            this.animOffset = Math.sin(gameTime * 0.1) * 3;
+          else this.animOffset = 0;
+        }
+
+        draw(isReplayOverride = null) {
+          const state = isReplayOverride || this;
+          const cx = state.x + this.w / 2;
+          const cy = state.y + this.h / 2;
+          const dir = state.facingRight ? 1 : -1;
+
+          ctx.save();
+
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+          ctx.beginPath();
+          ctx.ellipse(
+            cx,
+            FLOOR,
+            40 - (FLOOR - (state.y + this.h)) / 8,
+            7,
+            0,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+
+          if (state.invincible && Math.floor(gameTime) % 4 < 2)
+            ctx.globalAlpha = 0.5;
+          if (state.stunFrames > 0 && Math.floor(gameTime) % 4 < 2)
+            ctx.filter = 'brightness(250%) hue-rotate(90deg)';
+          if (state.blockTimer > 0 && state.blockTimer < 10)
+            ctx.filter = 'brightness(200%)';
+
+          const drawColor = state.blocking ? '#00cec9' : this.color;
+
+          ctx.fillStyle = '#2f3542';
+          ctx.fillRect(
+            state.x + 10,
+            state.y + 40 + state.animOffset,
+            this.w - 20,
+            50
+          );
+          ctx.strokeStyle = drawColor;
+          ctx.lineWidth = 4;
+          ctx.strokeRect(
+            state.x + 10,
+            state.y + 40 + state.animOffset,
+            this.w - 20,
+            50
+          );
+
+          ctx.fillStyle = '#1e272e';
+          ctx.beginPath();
+          ctx.arc(cx, state.y + 20 + state.animOffset, 20, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          if (state.shieldActive && Math.floor(gameTime) % 2 === 0) {
+            ctx.strokeStyle = '#00cec9';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 40, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = drawColor;
+          ctx.fillStyle = drawColor;
+          ctx.fillRect(
+            cx + 10 * dir,
+            state.y + 15 + state.animOffset,
+            14 * dir,
+            6
+          );
+          ctx.shadowBlur = 0;
+
+          ctx.fillStyle = '#2f3542';
+          const legSpread =
+            Math.abs(state.vx) > 1 ? Math.sin(gameTime * 0.5) * 20 : 8;
+          if (state.y + this.h < FLOOR) {
+            ctx.fillRect(
+              cx - 18 - legSpread,
+              state.y + 90 + state.animOffset,
+              14,
+              30 - state.animOffset
+            );
+            ctx.fillRect(
+              cx + 4 + legSpread,
+              state.y + 90 + state.animOffset,
+              14,
+              30 - state.animOffset
+            );
+          } else {
+            ctx.fillRect(cx - 18 - legSpread, FLOOR - 30, 14, 30);
+            ctx.fillRect(cx + 4 + legSpread, FLOOR - 30, 14, 30);
+          }
+
+          if (state.blocking) {
+            ctx.fillStyle = '#00cec9';
+            ctx.fillRect(
+              cx + 15 * dir,
+              state.y + 35 + state.animOffset,
+              10 * dir,
+              45
+            );
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#00cec9';
+            ctx.strokeStyle = 'rgba(0, 206, 201, 0.6)';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(
+              cx + 25 * dir,
+              cy,
+              50,
+              -Math.PI / 2.2,
+              Math.PI / 2.2,
+              dir < 0
+            );
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+          } else if (state.isAttacking) {
+            const reach = state.attackType === 2 ? 75 : 45;
+            const atkThickness = state.attackType === 2 ? 20 : 12;
+            ctx.fillStyle = drawColor;
+            ctx.shadowBlur = state.attackType === 2 ? 25 : 10;
+            ctx.shadowColor = drawColor;
+            ctx.fillRect(
+              cx,
+              state.y + 45 + state.animOffset,
+              reach * dir,
+              atkThickness
+            );
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(
+              cx + reach * dir,
+              state.y + 43 + state.animOffset,
+              18 * dir,
+              atkThickness + 4
+            );
+            ctx.shadowBlur = 0;
+          } else {
+            ctx.fillStyle = drawColor;
+            const armSwing =
+              Math.abs(state.vx) > 1
+                ? Math.sin(gameTime * 0.5 + Math.PI) * 15
+                : 0;
+            ctx.fillRect(
+              cx - 6 + armSwing,
+              state.y + 45 + state.animOffset,
+              12,
+              40
+            );
+          }
+
+          ctx.restore();
+        }
+
+        attackTarget(target, baseDamage, kForce, type = 1) {
+          if (this.attackCooldown > 0 || this.blocking || this.stunFrames > 0)
+            return;
+
+          this.isAttacking = true;
+          this.attackType = type;
+          this.attackDuration = type === 2 ? 18 : 10;
+          this.attackCooldown = type === 2 ? 30 : 15;
+
+          const damage = baseDamage * this.damageMultiplier;
+          const dist = Math.abs(this.x - target.x);
+          const rightDir = this.facingRight
+            ? target.x > this.x
+            : target.x < this.x;
+          const yOverlap =
+            this.y < target.y + target.h && this.y + this.h > target.y;
+          const hitRange = type === 2 ? 120 : 90;
+
+          spawnParticles(
+            this.facingRight ? this.x + this.w + 10 : this.x - 10,
+            this.y + 50,
+            this.color,
+            4,
+            'line'
+          );
+
+          if (dist < hitRange && rightDir && yOverlap && !target.invincible) {
+            if (!target.blocking) {
+              let actualDamage = damage;
+              if (target.shieldActive) {
+                actualDamage = Math.floor(damage * 0.5);
+                floatingTexts.push({
+                  x: target.x + (Math.random() * 30 - 15),
+                  y: target.y - 10,
+                  text: `BLOC! -${actualDamage}`,
+                  life: 50,
+                  color: '#00cec9',
+                  scale: 1.1,
+                });
+              } else {
+                floatingTexts.push({
+                  x: target.x + (Math.random() * 30 - 15),
+                  y: target.y - 10,
+                  text: `-${actualDamage}`,
+                  life: 50,
+                  color: '#fff',
+                  scale: type === 2 ? 1.4 : 1,
+                });
+              }
+
+              target.health -= actualDamage;
+              target.knockback = this.facingRight ? kForce : -kForce;
+              target.stunFrames = type === 2 ? 20 : 10;
+              this.energy = Math.min(
+                this.maxEnergy,
+                this.energy + (type === 2 ? 25 : 10)
+              );
+
+              this.combo++;
+              this.comboTimer = 150;
+              target.combo = 0;
+              target.comboTimer = 0;
+
+              if (!this.isBot) {
+                currentScore += Math.floor(actualDamage * 10);
+                updateQuestProgress('damageDealt', Math.floor(actualDamage));
+                if (this.combo > 1) updateQuestProgress('combos', 1);
+              }
+
+              hitStopFrames = type === 2 ? 8 : 3;
+              triggerShake(type === 2 ? 25 : 12);
+              vibrate(type === 2 ? 50 : 20);
+
+              spawnParticles(
+                target.x + target.w / 2,
+                target.y + 40,
+                this.color,
+                type === 2 ? 40 : 15,
+                'star'
+              );
+              if (type === 2)
+                floorDecals.push({
+                  x: target.x,
+                  y: FLOOR,
+                  w: 60,
+                  life: 600,
+                  color: this.color,
+                });
+
+              playSFX('hit', type === 2 ? 1.8 : 1);
+              updateScoreDisplay();
+            } else {
+              if (target.blockTimer < 12) {
+                this.stunFrames = 25;
+                this.knockback = this.facingRight ? -10 : 10;
+                target.energy = Math.min(target.maxEnergy, target.energy + 30);
+
+                hitStopFrames = 10;
+                triggerShake(15);
+                playSFX('parry');
+                vibrate(40);
+                announce('PARRY!', '#0984e3', 40, 0.8);
+
+                spawnParticles(
+                  target.x + target.w / 2,
+                  target.y + 40,
+                  '#74b9ff',
+                  30,
+                  'spark'
+                );
+                floatingTexts.push({
+                  x: target.x,
+                  y: target.y - 20,
+                  text: 'PERFECT!',
+                  life: 40,
+                  color: '#74b9ff',
+                  scale: 1.2,
+                });
+
+                if (!this.isBot) updateQuestProgress('blocks');
+              } else {
+                target.health -= Math.floor(damage / 8);
+                target.knockback = this.facingRight ? kForce / 2 : -kForce / 2;
+                spawnParticles(
+                  target.x + target.w / 2,
+                  target.y + 40,
+                  '#00cec9',
+                  10,
+                  'spark'
+                );
+                floatingTexts.push({
+                  x: target.x,
+                  y: target.y,
+                  text: 'BLOC',
+                  life: 30,
+                  color: '#00cec9',
+                  scale: 0.8,
+                });
+                playSFX('hit', 0.5);
+                vibrate(10);
+              }
+            }
+          }
+        }
+      }
+
+      // ==================== EFFETS VISUELS ====================
+      function triggerShake(intensity) {
+        shakeIntensity = intensity;
+      }
+
+      function announce(text, color, duration = 60, scale = 1) {
+        bigAnnouncer = { text, timer: duration, color, scale };
+      }
+
+      function spawnParticles(x, y, color, count = 10, shape = 'square') {
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          let speed = Math.random() * 12 + 2;
+          if (shape === 'slash') {
+            angle = Math.random() > 0.5 ? Math.PI / 4 : -Math.PI / 4;
+            speed *= 2;
+          }
+          particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 2,
+            life: 20 + Math.random() * 25,
+            maxLife: 45,
+            color,
+            shape,
+            size: Math.random() * 5 + 2,
+          });
+        }
+      }
+
+      function createDust(x, y, color, count = 6) {
+        for (let i = 0; i < count; i++) {
+          particles.push({
+            x: x + (Math.random() * 50 - 25),
+            y,
+            vx: (Math.random() - 0.5) * 5,
+            vy: -Math.random() * 4,
+            life: 20,
+            maxLife: 20,
+            color: 'rgba(255, 255, 255, 0.5)',
+            shape: 'dust',
+            size: Math.random() * 8 + 4,
+          });
+        }
+      }
+
+      function drawFX() {
+        for (let i = floorDecals.length - 1; i >= 0; i--) {
+          const d = floorDecals[i];
+          ctx.globalAlpha = Math.min(1, d.life / 100) * 0.4;
+          ctx.fillStyle = d.color;
+          ctx.beginPath();
+          ctx.ellipse(d.x + 30, d.y, d.w / 2, d.w / 6, 0, 0, Math.PI * 2);
+          ctx.fill();
+          d.life--;
+          if (d.life <= 0) floorDecals.splice(i, 1);
+        }
+        ctx.globalAlpha = 1;
+
+        for (let i = trails.length - 1; i >= 0; i--) {
+          const t = trails[i];
+          ctx.globalAlpha = (t.life / 15) * 0.5;
+          ctx.fillStyle = t.color;
+          ctx.fillRect(t.x, t.y, t.w, t.h);
+          t.life--;
+          if (t.life <= 0) trails.splice(i, 1);
+        }
+        ctx.globalAlpha = 1;
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          ctx.globalAlpha = p.life / p.maxLife;
+          ctx.fillStyle = p.color;
+
+          if (p.shape === 'star' || p.shape === 'slash') {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = p.color;
+            if (p.shape === 'slash')
+              ctx.fillRect(p.x, p.y, p.size * 4, p.size / 2);
+            else ctx.fillRect(p.x, p.y, p.size, p.size);
+            ctx.shadowBlur = 0;
+          } else if (p.shape === 'dust') {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            p.size += 0.8;
+          } else {
+            ctx.fillRect(p.x, p.y, p.size, p.size);
+          }
+
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.shape !== 'dust' && p.shape !== 'slash') p.vy += GRAVITY * 0.6;
+          if (p.y > FLOOR) {
+            p.y = FLOOR;
+            p.vy *= -0.4;
+            p.vx *= 0.7;
+          }
+          p.life--;
+          if (p.life <= 0) particles.splice(i, 1);
+        }
+        ctx.globalAlpha = 1;
+
+        for (let i = floatingTexts.length - 1; i >= 0; i--) {
+          const ft = floatingTexts[i];
+          ctx.globalAlpha = ft.life / 50;
+          ctx.fillStyle = ft.color;
+          ctx.font = `900 ${26 * (ft.scale || 1)}px 'Segoe UI'`;
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = '#000';
+          ctx.fillText(ft.text, ft.x, ft.y);
+          ctx.shadowBlur = 0;
+          ft.y -= 2;
+          ft.life--;
+          if (ft.life <= 0) floatingTexts.splice(i, 1);
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // ==================== LOGIQUE DE JEU ====================
+      function handleInput() {
+        if (player.stunFrames > 0 || isCinematic || isPaused) return;
+
+        player.blocking = false;
+        player.facingRight = player.x <= bot.x;
+        let isMoving = false;
+
+        const checkDash = (keyName, dir) => {
+          if (keys[keyName]) {
+            const now = Date.now();
+            if (
+              lastKey.key === keyName &&
+              now - lastKey.time < 250 &&
+              !keys[`${keyName}_held`]
+            ) {
+              player.dash(dir);
+              lastKey.key = '';
+            } else if (!keys[`${keyName}_held`]) {
+              lastKey = { key: keyName, time: now };
+            }
+            keys[`${keyName}_held`] = true;
+            player.vx += dir === 'right' ? 1.8 : -1.8;
+            isMoving = true;
+          } else {
+            keys[`${keyName}_held`] = false;
+          }
+        };
+
+        checkDash('q', 'left');
+        checkDash('a', 'left');
+        checkDash('ArrowLeft', 'left');
+        checkDash('d', 'right');
+        checkDash('ArrowRight', 'right');
+
+        if (player.vx > player.speed) player.vx = player.speed;
+        if (player.vx < -player.speed) player.vx = -player.speed;
+
+        if (isMoving && player.y === FLOOR - player.h && Math.random() < 0.15) {
+          createDust(player.x + player.w / 2, FLOOR, player.color, 2);
+        }
+
+        if (
+          (keys['z'] || keys['ArrowUp']) &&
+          player.y < FLOOR - player.h &&
+          player.canDoubleJump &&
+          !player.hasDoubleJumped
+        ) {
+          player.vy = player.jumpPower * 0.9;
+          player.hasDoubleJumped = true;
+          createDust(
+            player.x + player.w / 2,
+            player.y + player.h,
+            player.color,
+            8
+          );
+          playSFX('jump');
+          vibrate(20);
+        } else if (
+          (keys['z'] || keys['ArrowUp']) &&
+          player.y >= FLOOR - player.h
+        ) {
+          player.vy = player.jumpPower;
+          createDust(player.x + player.w / 2, FLOOR, player.color, 10);
+          playSFX('jump');
+          vibrate(20);
+        }
+
+        if (keys['s'] || keys['ArrowDown']) {
+          player.blocking = true;
+          if (!player.isBot) updateQuestProgress('blocks');
+        }
+
+        if (keys['f']) player.attackTarget(bot, 10, 10, 1);
+        if (keys['g']) {
+          if (player.energy >= 100) player.triggerSuper(bot);
+          else if (player.energy >= 40) {
+            player.energy -= 40;
+            playSFX('dash');
+            vibrate(30);
+            player.attackTarget(bot, 30, 22, 2);
+          }
+        }
+      }
+
+      function aiLogic() {
+        if (bot.stunFrames > 0 || isCinematic || isPaused) return;
+
+        bot.blocking = false;
+        bot.facingRight = bot.x <= player.x;
+        const dist = Math.abs(bot.x - player.x);
+        const agression = 0.025 + currentLevel * 0.02;
+
+        if (dist > 100) {
+          bot.vx += bot.x < player.x ? 1.5 : -1.5;
+          if (bot.vx > bot.speed) bot.vx = bot.speed;
+          if (bot.vx < -bot.speed) bot.vx = -bot.speed;
+          if (dist > 300 && Math.random() < 0.02 * currentLevel)
+            bot.dash(bot.x < player.x ? 'right' : 'left');
+        } else {
+          if (Math.random() < agression)
+            bot.attackTarget(player, 8 + currentLevel, 10, 1);
+          if (bot.energy >= 100 && Math.random() < 0.1)
+            bot.triggerSuper(player);
+          else if (bot.energy >= 40 && Math.random() < agression / 1.2) {
+            bot.energy -= 40;
+            bot.attackTarget(player, 25 + currentLevel * 2, 22, 2);
+          }
+        }
+
+        if (player.isAttacking && dist < 130) {
+          if (Math.random() < 0.25 * currentLevel) bot.blocking = true;
+          if (Math.random() < 0.05 * currentLevel) {
+            bot.blocking = true;
+            bot.blockTimer = 0;
+          }
+        }
+
+        if (Math.random() < 0.02 && bot.y >= FLOOR - bot.h)
+          bot.vy = bot.jumpPower;
+      }
+
+      function checkWin() {
+        if ((player.health <= 0 || bot.health <= 0) && !isCinematic) {
+          gameState = 'gameover';
+          if (isMobile)
+            document.getElementById('mobileControls').style.display = 'none';
+          document.getElementById('btn-record').style.display = 'none';
+
+          let coinsEarned = 0;
+          let xpEarned = 0;
+
+          if (player.health > 0) {
+            coinsEarned =
+              50 + currentLevel * 20 + Math.floor(currentScore / 50);
+            xpEarned = 100 + currentLevel * 50 + Math.floor(currentScore / 20);
+
+            if (player.health === player.maxHealth) {
+              coinsEarned *= 1.5;
+              xpEarned *= 1.5;
+              updateQuestProgress('perfects', 1);
+            }
+
+            updateQuestProgress('wins', 1);
+          } else {
+            coinsEarned = 10 + Math.floor(currentLevel * 5);
+            xpEarned = 20 + Math.floor(currentLevel * 10);
+          }
+
+          coins += Math.floor(coinsEarned);
+          xp += Math.floor(xpEarned);
+
+          localStorage.setItem('sfMasterclassCoins', coins);
+          localStorage.setItem('sfMasterclassXP', xp);
+
+          document.getElementById('coinsEarnedDisplay').textContent =
+            Math.floor(coinsEarned);
+          document.getElementById('gameOverXP').textContent =
+            Math.floor(xpEarned);
+
+          if (currentScore > highScore) {
+            highScore = currentScore;
+            localStorage.setItem('sfMasterclassHighScore', highScore);
+          }
+
+          updateScoreDisplay();
+          updateCoinsDisplay();
+          updateXPDisplay();
+          checkQuests();
+
+          const menu = document.getElementById('gameOverMenu');
+          const title = document.getElementById('resultText');
+
+          hitStopFrames = 40;
+          triggerShake(30);
+          vibrate(100);
+          announce('K.O.', '#ff4757', 100, 2);
+          showXPNotification(xpEarned);
+
+          if (isRecording) stopRecording();
+
+          setTimeout(() => {
+            menu.classList.remove('hidden');
+            document.getElementById('downloadBtn').classList.remove('hidden');
+            if (player.health <= 0) {
+              title.innerText = 'DÉFAITE';
+              title.style.color = '#ff4757';
+              document.getElementById('nextLevelBtn').classList.add('hidden');
+              document.getElementById('retryBtn').classList.remove('hidden');
+            } else {
+              title.innerText =
+                player.health === player.maxHealth ? 'PERFECT!' : 'VICTOIRE';
+              title.style.color = '#2ed573';
+              document
+                .getElementById('nextLevelBtn')
+                .classList.remove('hidden');
+              document.getElementById('retryBtn').classList.add('hidden');
+            }
+            const firstButton = menu.querySelector('button:not(.hidden)');
+            if (firstButton) firstButton.focus();
+          }, 1500);
+        }
+      }
+
+      // ==================== SYSTÈME DE REPLAY ====================
+      function recordFrame() {
+        if (isCinematic || isPaused) return;
+        replayData.push({
+          p: {
+            x: player.x,
+            y: player.y,
+            hp: player.health,
+            dhp: player.displayHealth,
+            en: player.energy,
+            atk: player.isAttacking,
+            typ: player.attackType,
+            blk: player.blocking,
+            dir: player.facingRight,
+            anim: player.animOffset,
+            cb: player.combo,
+            inv: player.invincible,
+            st: player.stunFrames,
+          },
+          b: {
+            x: bot.x,
+            y: bot.y,
+            hp: bot.health,
+            dhp: bot.displayHealth,
+            en: bot.energy,
+            atk: bot.isAttacking,
+            typ: bot.attackType,
+            blk: bot.blocking,
+            dir: bot.facingRight,
+            anim: bot.animOffset,
+            cb: bot.combo,
+            inv: bot.invincible,
+            st: bot.stunFrames,
+          },
+          cam: { x: targetCamera.x, zoom: targetCamera.zoom },
+        });
+      }
+
+      function playReplay() {
+        document.getElementById('gameOverMenu').classList.add('hidden');
+        document.getElementById('replayBadge').style.display = 'block';
+        gameState = 'replaying';
+        currentReplayFrame = 0;
+        particles = [];
+        floatingTexts = [];
+        trails = [];
+        floorDecals = [];
+        bigAnnouncer.timer = 0;
+        requestAnimationFrame(gameLoop);
+      }
+
+      // ==================== ENREGISTREMENT VIDÉO ====================
+      function toggleRecording() {
+        if (!isRecording) startRecording();
+        else stopRecording();
+      }
+
+      function startRecording() {
+        if (isRecording) return;
+        if (!window.MediaRecorder) {
+          alert(
+            "L'enregistrement vidéo n'est pas supporté. Utilisez Chrome ou Firefox."
+          );
+          return;
+        }
+
+        const stream = canvas.captureStream(30);
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(stream, {
+          mimeType: 'video/webm;codecs=vp9',
+          videoBitsPerSecond: 2500000,
+        });
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) recordedChunks.push(event.data);
+        };
+        mediaRecorder.onstop = () => {
+          isRecording = false;
+          recordingIndicator.style.display = 'none';
+        };
+
+        mediaRecorder.start(100);
+        isRecording = true;
+        recordingIndicator.style.display = 'block';
+        vibrate(50);
+      }
+
+      function stopRecording() {
+        if (!isRecording) return;
+        mediaRecorder.stop();
+        isRecording = false;
+        vibrate(30);
+      }
+
+      function downloadVideo() {
+        if (recordedChunks.length === 0) {
+          alert(
+            'Aucune vidéo enregistrée ! Utilisez le bouton 🎥 ou la touche R.'
+          );
+          return;
+        }
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `StreetFighter_Replay_Stage${currentLevel}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        vibrate(30);
+      }
+
+      // ==================== GESTION DES REPLAYS ====================
+      function openReplayManager() {
+        savedReplays =
+          JSON.parse(localStorage.getItem('sfMasterclassReplays')) || {};
+        const replayList = document.getElementById('replayList');
+        replayList.innerHTML = '';
+
+        if (Object.keys(savedReplays).length === 0) {
+          replayList.innerHTML =
+            '<p style="color: #a4b0be;">Aucun replay sauvegardé.</p>';
+          document
+            .getElementById('replayManagerMenu')
+            .classList.remove('hidden');
+          return;
+        }
+
+        for (const key in savedReplays) {
+          const replay = savedReplays[key];
+          const item = document.createElement('div');
+          item.setAttribute('role', 'option');
+          item.setAttribute('tabindex', '0');
+          item.style.padding = '6px';
+          item.style.margin = '4px 0';
+          item.style.borderBottom = '1px solid rgba(255,255,255,0.15)';
+          item.style.cursor = 'pointer';
+          item.style.borderRadius = '4px';
+          item.style.transition = 'background 0.2s';
+          item.onclick = () => selectReplay(key);
+          item.onkeydown = (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              selectReplay(key);
+            }
+          };
+          item.innerHTML = `
+          <span style="color: ${
+            replay.won ? '#2ed573' : '#ff4757'
+          }; font-weight: bold;">${replay.name}</span>
+          <span style="float: right; color: #f1c40f;">Stage ${
+            replay.level
+          } | Score: ${replay.score}</span>
+          <div style="color: #a4b0be; font-size: 0.8em; margin-top: 3px;">${new Date(
+            replay.date
+          ).toLocaleDateString()}</div>
+        `;
+          item.onmouseover = () =>
+            (item.style.background = 'rgba(255,255,255,0.08)');
+          item.onmouseout = () => (item.style.background = '');
+          replayList.appendChild(item);
+        }
+
+        document.getElementById('replayManagerMenu').classList.remove('hidden');
+        const firstItem = replayList.querySelector('[role="option"]');
+        if (firstItem) firstItem.focus();
+      }
+
+      function closeReplayManager() {
+        document.getElementById('replayManagerMenu').classList.add('hidden');
+        selectedReplayKey = null;
+        const mainMenuButton = document.querySelector(
+          '#gameOverMenu button:not(.hidden)'
+        );
+        if (mainMenuButton) mainMenuButton.focus();
+      }
+
+      function selectReplay(key) {
+        selectedReplayKey = key;
+        const replayList = document.getElementById('replayList');
+        if (!replayList) return;
+        const items = replayList.querySelectorAll('[role="option"]');
+        items.forEach((item) => (item.style.background = ''));
+        const selectedItem = Array.from(items).find((item) =>
+          item.textContent.includes(savedReplays[key].name)
+        );
+        if (selectedItem)
+          selectedItem.style.background = 'rgba(46, 213, 115, 0.2)';
+      }
+
+      function saveCurrentReplay() {
+        if (replayData.length === 0) {
+          alert('Aucun replay à sauvegarder !');
+          return;
+        }
+        const nameInput = document.getElementById('replayNameInput');
+        const name =
+          nameInput.value.trim() ||
+          `Replay Stage ${currentLevel} - ${new Date().toLocaleDateString()}`;
+
+        savedReplays =
+          JSON.parse(localStorage.getItem('sfMasterclassReplays')) || {};
+        const replayKey = `replay_${Date.now()}`;
+        savedReplays[replayKey] = {
+          name,
+          data: replayData,
+          level: currentLevel,
+          score: currentScore,
+          date: new Date().toISOString(),
+          won: player.health > 0,
+        };
+        localStorage.setItem(
+          'sfMasterclassReplays',
+          JSON.stringify(savedReplays)
+        );
+
+        nameInput.value = '';
+        vibrate(30);
+        alert(`Replay "${name}" sauvegardé !`);
+        openReplayManager();
+      }
+
+      function loadReplayFromList() {
+        if (!selectedReplayKey) {
+          alert('Sélectionnez un replay !');
+          return;
+        }
+        const replay = savedReplays[selectedReplayKey];
+        if (!replay) {
+          alert('Replay introuvable.');
+          return;
+        }
+
+        closeReplayManager();
+        goToHome();
+        setTimeout(() => {
+          replayData = replay.data;
+          currentReplayFrame = 0;
+          document.getElementById('replayBadge').style.display = 'block';
+          gameState = 'replaying';
+          particles = [];
+          floatingTexts = [];
+          trails = [];
+          floorDecals = [];
+          bigAnnouncer.timer = 0;
+          requestAnimationFrame(gameLoop);
+        }, 100);
+      }
+
+      function deleteSelectedReplay() {
+        if (!selectedReplayKey) {
+          alert('Sélectionnez un replay !');
+          return;
+        }
+        const replay = savedReplays[selectedReplayKey];
+        if (confirm(`Supprimer "${replay.name}" ?`)) {
+          delete savedReplays[selectedReplayKey];
+          localStorage.setItem(
+            'sfMasterclassReplays',
+            JSON.stringify(savedReplays)
+          );
+          selectedReplayKey = null;
+          vibrate(30);
+          openReplayManager();
+        }
+      }
+
+      // ==================== RENDU GRAPHIQUE ====================
+      function getComboRank(combo) {
+        if (combo >= 20) return { t: 'GODLIKE', c: '#ff3838' };
+        if (combo >= 12) return { t: 'SSS !!!', c: '#ff9f43' };
+        if (combo >= 8) return { t: 'SS !!', c: '#feca57' };
+        if (combo >= 5) return { t: 'S !', c: '#1dd1a1' };
+        if (combo >= 3) return { t: 'A', c: '#48dbfb' };
+        return { t: 'B', c: '#c8d6e5' };
+      }
+
+      function drawBar(
+        x,
+        y,
+        w,
+        current,
+        displayCurrent,
+        max,
+        color,
+        rightAlign,
+        name,
+        isEx
+      ) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(x, y, w, isEx ? 15 : 28);
+
+        let dhpW = Math.max(0, (displayCurrent / max) * w);
+        if (!isEx) {
+          ctx.fillStyle = '#ff4757';
+          ctx.fillRect(rightAlign ? x + (w - dhpW) : x, y, dhpW, 28);
+        }
+
+        let pw = Math.max(0, (current / max) * w);
+        let fillC =
+          isEx && current >= max && Math.floor(gameTime / 5) % 2 === 0
+            ? '#fff'
+            : color;
+        ctx.fillStyle = fillC;
+        ctx.fillRect(rightAlign ? x + (w - pw) : x, y, pw, isEx ? 15 : 28);
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, isEx ? 15 : 28);
+
+        if (!isEx) {
+          ctx.fillStyle = '#fff';
+          ctx.font = "bold 18px 'Segoe UI' ";
+          ctx.shadowBlur = 5;
+          ctx.shadowColor = '#000';
+          ctx.fillText(name, rightAlign ? x + w - 40 : x + 15, y + 20);
+          ctx.shadowBlur = 0;
+        } else if (current >= max) {
+          ctx.fillStyle = '#000';
+          ctx.font = "900 12px 'Segoe UI' ";
+          ctx.fillText('MAX', rightAlign ? x + 5 : x + w - 35, y + 12);
+        }
+      }
+
+      function drawUI(pState, bState) {
+        drawBar(
+          30,
+          30,
+          400,
+          pState.hp || pState.health,
+          pState.dhp || player.displayHealth,
+          player.maxHealth,
+          '#2ed573',
+          false,
+          'P1',
+          false
+        );
+        drawBar(
+          30,
+          65,
+          250,
+          pState.en || pState.energy,
+          pState.en || player.energy,
+          player.maxEnergy,
+          '#0984e3',
+          false,
+          '',
+          true
+        );
+        drawBar(
+          CW - 430,
+          30,
+          400,
+          bState.hp || bot.health,
+          bState.dhp || bot.displayHealth,
+          bot.maxHealth,
+          '#ff4757',
+          true,
+          'IA',
+          false
+        );
+        drawBar(
+          CW - 280,
+          65,
+          250,
+          bState.en || bot.energy,
+          bState.en || bot.energy,
+          bot.maxEnergy,
+          '#0984e3',
+          true,
+          '',
+          true
+        );
+
+        const drawCombo = (cb, x, y, alignRight) => {
+          if (cb > 1) {
+            const rank = getComboRank(cb);
+            const pop = Math.sin(gameTime * 0.5) * 8;
+            ctx.textAlign = alignRight ? 'right' : 'left';
+            ctx.fillStyle = rank.c;
+            ctx.font = `italic 900 ${45 + pop}px 'Segoe UI'`;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = rank.c;
+            ctx.fillText(`${cb} HITS`, x, y);
+            ctx.fillStyle = '#fff';
+            ctx.font = `italic 900 28px 'Segoe UI'`;
+            ctx.fillText(rank.t, x, y + 35);
+            ctx.shadowBlur = 0;
+            ctx.textAlign = 'left';
+          }
+        };
+        drawCombo(pState.cb || player.combo, 40, 160, false);
+        drawCombo(bState.cb || bot.combo, CW - 40, 160, true);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.font = 'italic 900 70px "Segoe UI"';
+        ctx.textAlign = 'center';
+        ctx.fillText('VS', CW / 2, 90);
+        ctx.textAlign = 'left';
+
+        if (bigAnnouncer.timer > 0) {
+          ctx.textAlign = 'center';
+          ctx.fillStyle = bigAnnouncer.color;
+          const aScale = bigAnnouncer.scale + Math.sin(gameTime * 0.3) * 0.1;
+          ctx.font = `italic 900 ${80 * aScale}px 'Segoe UI'`;
+          ctx.shadowBlur = 30;
+          ctx.shadowColor = bigAnnouncer.color;
+          ctx.fillText(bigAnnouncer.text, CW / 2, CH / 2);
+          ctx.shadowBlur = 0;
+          ctx.textAlign = 'left';
+          bigAnnouncer.timer--;
+        }
+      }
+
+      function drawBg() {
+        const camOffsetX = (camera.x - CW / 2) * 0.2;
+        const g = ctx.createLinearGradient(0, 0, 0, CH);
+        g.addColorStop(0, '#020204');
+        g.addColorStop(0.6, '#0f111a');
+        g.addColorStop(1, '#1e272e');
+        ctx.fillStyle = g;
+        ctx.fillRect(camera.x - CW, 0, CW * 2, CH);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        bgStars.forEach((s) => {
+          const sx = s.x - camOffsetX * 0.5;
+          ctx.beginPath();
+          ctx.arc(sx, s.y, s.s, 0, Math.PI * 2);
+          ctx.fill();
+          s.x -= s.speed;
+          if (s.x < camera.x - CW) s.x = camera.x + CW;
+        });
+
+        ctx.shadowBlur = 25;
+        ctx.shadowColor = 'var(--primary)';
+        ctx.fillStyle = '#ff4757';
+        ctx.fillRect(camera.x - CW, FLOOR - 3, CW * 2, 6);
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = '#050508';
+        ctx.fillRect(camera.x - CW, FLOOR, CW * 2, CH - FLOOR);
+
+        ctx.strokeStyle = 'rgba(255, 71, 87, 0.4)';
+        ctx.lineWidth = 2;
+        for (let i = 1; i < 6; i++) {
+          const y = FLOOR + i * i * 4;
+          if (y < CH) {
+            ctx.beginPath();
+            ctx.moveTo(camera.x - CW, y);
+            ctx.lineTo(camera.x + CW, y);
+            ctx.stroke();
+          }
+        }
+
+        const gridCenter = camera.x;
+        for (let i = -20; i < 20; i++) {
+          ctx.beginPath();
+          const topX = gridCenter + i * 100 - camOffsetX;
+          const botX = gridCenter + (i * 100 - camOffsetX) * 3;
+          ctx.moveTo(topX, FLOOR);
+          ctx.lineTo(botX, CH);
+          ctx.stroke();
+        }
+      }
+
+      // ==================== CAMERA ====================
+      function updateCamera() {
+        if (gameState !== 'playing' && gameState !== 'replaying') return;
+
+        const midX = (player.x + bot.x + player.w) / 2;
+        const dist = Math.abs(player.x - bot.x);
+
+        targetCamera.x = midX;
+        targetCamera.zoom = dist < 300 ? 0.85 : dist > 700 ? 0.7 : 0.75;
+
+        if (targetCamera.x < CW / 2 / targetCamera.zoom - 100)
+          targetCamera.x = CW / 2 / targetCamera.zoom - 100;
+        if (targetCamera.x > CW - CW / 2 / targetCamera.zoom + 100)
+          targetCamera.x = CW - CW / 2 / targetCamera.zoom + 100;
+
+        camera.x += (targetCamera.x - camera.x) * 0.1;
+        camera.zoom += (targetCamera.zoom - camera.zoom) * 0.05;
+      }
+
+      // ==================== BOUCLE PRINCIPALE ====================
+      function gameLoop() {
+        if (
+          gameState === 'loading' ||
+          gameState === 'intro' ||
+          gameState === 'menu' ||
+          gameState === 'gameover' ||
+          gameState === 'shop' ||
+          gameState === 'quests' ||
+          isPaused
+        )
+          return;
+
+        gameTime++;
+
+        if (hitStopFrames > 0) {
+          hitStopFrames--;
+          renderScene();
+          requestAnimationFrame(gameLoop);
+          return;
+        }
+
+        if (isCinematic) {
+          cinematicFrames--;
+          if (cinematicFrames <= 0) isCinematic = false;
+          renderScene();
+          requestAnimationFrame(gameLoop);
+          return;
+        }
+
+        if (gameState === 'playing') {
+          handleInput();
+          aiLogic();
+          player.update();
+          bot.update();
+          updateCamera();
+          recordFrame();
+          checkWin();
+        } else if (gameState === 'replaying') {
+          if (currentReplayFrame < replayData.length) {
+            const f = replayData[currentReplayFrame];
+            player.x = f.p.x;
+            player.y = f.p.y;
+            bot.x = f.b.x;
+            bot.y = f.b.y;
+            targetCamera.x = f.cam.x;
+            targetCamera.zoom = f.cam.zoom;
+            camera.x += (targetCamera.x - camera.x) * 0.2;
+            camera.zoom += (targetCamera.zoom - camera.zoom) * 0.2;
+            currentReplayFrame++;
+          } else {
+            document.getElementById('replayBadge').style.display = 'none';
+            document.getElementById('gameOverMenu').classList.remove('hidden');
+            gameState = 'gameover';
+            return;
+          }
+        }
+
+        if (shakeIntensity > 0) shakeIntensity *= 0.8;
+        if (shakeIntensity < 0.5) shakeIntensity = 0;
+        shakeX = (Math.random() - 0.5) * shakeIntensity;
+        shakeY = (Math.random() - 0.5) * shakeIntensity;
+
+        renderScene();
+        requestAnimationFrame(gameLoop);
+      }
+
+      function renderScene() {
+        ctx.clearRect(0, 0, CW, CH);
+
+        ctx.save();
+        ctx.translate(shakeX, shakeY);
+        ctx.translate(CW / 2, CH / 2);
+        ctx.scale(camera.zoom, camera.zoom);
+        ctx.translate(-camera.x, -CH / 2);
+
+        drawBg();
+        drawFX();
+
+        if (isCinematic) {
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+          ctx.fillRect(camera.x - CW, 0, CW * 2, CH);
+          ctx.fillStyle = cinematicAttacker.color;
+          ctx.globalAlpha = 0.3;
+          ctx.fillRect(camera.x - CW, cinematicAttacker.y + 20, CW * 2, 80);
+          ctx.globalAlpha = 1;
+          camera.zoom = 1.4;
+          camera.x +=
+            (cinematicAttacker.x + cinematicAttacker.w / 2 - camera.x) * 0.2;
+          if (cinematicFrames % 10 < 3) {
+            ctx.fillStyle = '#fff';
+            ctx.globalAlpha = 0.1;
+            ctx.fillRect(camera.x - CW, 0, CW * 2, CH);
+            ctx.globalAlpha = 1;
+          }
+        }
+
+        if (gameState === 'playing') {
+          player.draw();
+          bot.draw();
+        } else if (gameState === 'replaying') {
+          const f = replayData[currentReplayFrame - 1];
+          if (f) {
+            player.draw({
+              x: f.p.x,
+              y: f.p.y,
+              blocking: f.p.blk,
+              isAttacking: f.p.atk,
+              attackType: f.p.typ,
+              facingRight: f.p.dir,
+              stunFrames: f.p.st,
+              animOffset: f.p.anim,
+              invincible: f.p.inv,
+              blockTimer: 0,
+            });
+            bot.draw({
+              x: f.b.x,
+              y: f.b.y,
+              blocking: f.b.blk,
+              isAttacking: f.b.atk,
+              attackType: f.b.typ,
+              facingRight: f.b.dir,
+              stunFrames: f.b.st,
+              animOffset: f.b.anim,
+              invincible: f.b.inv,
+              blockTimer: 0,
+            });
+          }
+        }
+
+        ctx.restore();
+
+        if (gameState === 'playing') drawUI(player, bot);
+        else if (
+          gameState === 'replaying' &&
+          replayData[currentReplayFrame - 1]
+        )
+          drawUI(
+            replayData[currentReplayFrame - 1].p,
+            replayData[currentReplayFrame - 1].b
+          );
+      }
+
+      // ==================== CONTRÔLES ====================
+      window.addEventListener('keydown', (e) => {
+        keys[e.key] = true;
+        keys[e.key.toLowerCase()] = true;
+
+        if (e.key === 'r' || e.key === 'R') toggleRecording();
+        if (e.key === ' ' || e.key === 'Spacebar') {
+          e.preventDefault();
+          togglePause();
+        }
+        if (e.key === 'b' || e.key === 'B') {
+          if (
+            gameState === 'menu' ||
+            gameState === 'paused' ||
+            gameState === 'gameover'
+          )
+            openShop();
+        }
+        if (e.key === 'q' || e.key === 'Q') {
+          if (
+            gameState === 'menu' ||
+            gameState === 'paused' ||
+            gameState === 'gameover'
+          )
+            openQuestsMenu();
+        }
+
+        if (
+          gameState === 'menu' ||
+          gameState === 'paused' ||
+          gameState === 'shop' ||
+          gameState === 'gameover' ||
+          gameState === 'quests'
+        ) {
+          if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault();
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        keys[e.key] = false;
+        keys[e.key.toLowerCase()] = false;
+        keys[`${e.key.toLowerCase()}_held`] = false;
+      });
+
+      window.addEventListener(
+        'touchstart',
+        (e) => {
+          if (gameState === 'playing') e.preventDefault();
+        },
+        { passive: false }
+      );
+
+      function setupMobileControls() {
+        const bindTouch = (id, action) => {
+          const btn = document.getElementById(id);
+          if (!btn) return;
+          btn.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            action();
+            btn.style.background = 'rgba(255, 255, 255, 0.4)';
+            vibrate(10);
+          });
+          const release = (e) => {
+            e.preventDefault();
+            btn.style.background = 'rgba(255, 255, 255, 0.05)';
+          };
+          btn.addEventListener('pointerup', release);
+          btn.addEventListener('pointerleave', release);
+          btn.addEventListener('pointercancel', release);
+        };
+
+        bindTouch('btn-left', () => {
+          keys['q'] = true;
+        });
+        bindTouch('btn-right', () => {
+          keys['d'] = true;
+        });
+        bindTouch('btn-up', () => {
+          keys['z'] = true;
+        });
+        bindTouch('btn-down', () => {
+          keys['s'] = true;
+        });
+        bindTouch('btn-jump', () => {
+          keys['z'] = true;
+        });
+        bindTouch('btn-block', () => {
+          keys['s'] = true;
+        });
+        bindTouch('btn-atk', () => {
+          keys['f'] = true;
+        });
+        bindTouch('btn-spec', () => {
+          keys['g'] = true;
+        });
+        bindTouch('btn-record-mobile', toggleRecording);
+
+        [
+          'btn-left',
+          'btn-right',
+          'btn-up',
+          'btn-down',
+          'btn-jump',
+          'btn-block',
+          'btn-atk',
+          'btn-spec',
+        ].forEach((id) => {
+          const btn = document.getElementById(id);
+          if (btn)
+            btn.addEventListener('pointerup', () => {
+              const keyMap = {
+                'btn-left': 'q',
+                'btn-right': 'd',
+                'btn-up': 'z',
+                'btn-down': 's',
+                'btn-jump': 'z',
+                'btn-block': 's',
+                'btn-atk': 'f',
+                'btn-spec': 'g',
+              };
+              keys[keyMap[id]] = false;
+              keys[`${keyMap[id]}_held`] = false;
+            });
+        });
+      }
+
+      // ==================== INITIALISATION ====================
+      window.onload = function () {
+        // Créer les étoiles de loading
+        const starsContainer = document.getElementById('loadingStars');
+        for (let i = 0; i < 100; i++) {
+          const star = document.createElement('div');
+          star.className = 'star';
+          star.style.left = `${Math.random() * 100}%`;
+          star.style.top = `${Math.random() * 100}%`;
+          star.style.animationDelay = `${Math.random() * 2}s`;
+          star.style.animationDuration = `${2 + Math.random() * 2}s`;
+          starsContainer.appendChild(star);
+        }
+
+        // Démarrer l'écran de loading
+        let progress = 0;
+        const duration = 5000;
+        const startTime = Date.now();
+
+        const updateProgress = () => {
+          const elapsed = Date.now() - startTime;
+          progress = Math.min(100, (elapsed / duration) * 100);
+          document.getElementById('loadingBar').style.width = `${progress}%`;
+          document.getElementById(
+            'loadingPercentage'
+          ).textContent = `${Math.floor(progress)}%`;
+
+          if (progress < 100) requestAnimationFrame(updateProgress);
+          else
+            setTimeout(() => {
+              document.getElementById('loadingScreen').classList.add('hidden');
+              document.getElementById('introScreen').classList.remove('hidden');
+              const video = document.getElementById('loadingVideo');
+              if (video)
+                video.play().catch((e) => {
+                  document.getElementById('loadingScreen').addEventListener(
+                    'click',
+                    () => {
+                      document
+                        .getElementById('loadingScreen')
+                        .classList.add('hidden');
+                      video.play();
+                    },
+                    { once: true }
+                  );
+                });
+            }, 300);
+        };
+        requestAnimationFrame(updateProgress);
+
+        // Initialiser les affichages
+        updateScoreDisplay();
+        updateCoinsDisplay();
+        updateXPDisplay();
+        startDailyBonusTimer();
+
+        // Navigation clavier
+        document.addEventListener('keydown', (e) => {
+          if (
+            gameState !== 'menu' &&
+            gameState !== 'paused' &&
+            gameState !== 'shop' &&
+            gameState !== 'gameover' &&
+            gameState !== 'quests'
+          )
+            return;
+          const focusableElements = Array.from(
+            document.querySelectorAll(
+              'button:not(.hidden):not([disabled]), input:not(.hidden):not([disabled]), [tabindex="0"]:not(.hidden)'
+            )
+          ).filter(
+            (el) =>
+              el.offsetParent !== null &&
+              getComputedStyle(el).display !== 'none'
+          );
+          if (focusableElements.length === 0) return;
+          const currentIndex = focusableElements.indexOf(
+            document.activeElement
+          );
+          let newIndex = -1;
+          if (e.key === 'Tab') {
+            e.preventDefault();
+            newIndex = e.shiftKey ? currentIndex - 1 : currentIndex + 1;
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            newIndex = currentIndex - 1;
+          } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            newIndex = currentIndex + 1;
+          } else if (e.key === 'Enter' || e.key === ' ') {
+            if (currentIndex !== -1 && focusableElements[currentIndex].click) {
+              e.preventDefault();
+              focusableElements[currentIndex].click();
+            }
+          }
+          if (newIndex !== -1) {
+            if (newIndex < 0) newIndex = focusableElements.length - 1;
+            if (newIndex >= focusableElements.length) newIndex = 0;
+            focusableElements[newIndex].focus();
+          }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        document.addEventListener('contextmenu', (e) => {
+          if (isMobile) e.preventDefault();
+        });
+      };
+
+      window.onbeforeunload = function () {
+        stopDailyBonusTimer();
+        if (isRecording) stopRecording();
+      };
+    </script>
+  </body>
+</html>
